@@ -1,6 +1,9 @@
 # Project place file
 /LuauScript.rbxlx
 
+# VSCode settings
+.vscode
+
 # Roblox Studio lock files
 /*.rbxlx.lock
 /*.rbxl.lock
