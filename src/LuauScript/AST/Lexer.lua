@@ -130,24 +130,24 @@ function Lexer:nextToken()
 	tokPos.line = curline
 
 	--[[
-		if we're not seeking tokens, then we're seeking something else.
+		if we're not seeking normal tokens, then we're seeking something else.
 		this handles the actions if the state isn't seekTokens
 	]]
 	if lexerState ~= lexerStates.seekTokens then
 		if lexerState == lexerStates.readStringTwoQuotes then
 			return doubleQuoteStringRead(tokPos)
 		elseif lexerState == lexerStates.readStringOneQuote then
-			return 
+			return error("UNIMPLEMENTED")
 		elseif lexerState == lexerStates.readStringQuoteDouble then
 			return readStringQuoteDouble(tokPos)
 		elseif lexerState == lexerStates.readStringEscape then
 			return stringEscapeRead(tokPos)
 		elseif lexerState == lexerStates.readRegexp then
-			return 
+			return error("UNIMPLEMENTED")
 		elseif lexerState == lexerStates.readComment then
-			return 
+			return error("UNIMPLEMENTED")
 		elseif lexerState == lexerStates.readMultiComment then
-			return 
+			return error("UNIMPLEMENTED")
 		elseif lexerState == lexerStates.returnNewlineTok then
 			return doNewlineCheck(tokPos)
 		end
@@ -177,7 +177,7 @@ function Lexer:nextToken()
 		return apossiblenewline
 	end
 
-	--we iterate thru keywords... yeah... and if there's no match we assume it's a class/function/variable/module/whatever
+	--we iterate through keywords... yeah... and if there's no match we assume it's a class/function/variable/module/whatever
 	if buf[curposreal]:find("[_%a]") then
 		local somethingStr = ""
 		tokPos.startPos = curpos
