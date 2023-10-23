@@ -85,9 +85,9 @@ lexerStates =
 	readMultiComment = 6,
 	--just returns a newline if there's one, and that's it
 	returnNewlineTok = 7,
-	--i hate this one
+	--reads and returns a string escape
 	readStringEscape = 8,
-	--and this one too
+	--reads and returns a double quote of a string
 	readStringQuoteDouble = 9
 }
 
