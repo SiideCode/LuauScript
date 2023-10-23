@@ -105,7 +105,7 @@ Token.tokT =
 	kvOverride = 91,					-- 91: override modifiers, overloads the function
 	kvDynamic = 92,						-- 92: dynamic access to a variable i guess
 	kvInline = 93,						-- 93: inline keyword
-	--TODO: решandть стоandт лand добавлять
+	--TODO: decide if it's needed later
 	--kvMacro = 94,						-- 94: haxe macro modifier.
 	kvFinal = 94,						-- 94: constant (might get unused, cause it can only be emulated)
 	kvOperator = 95,					-- 95: operator function modifier keyword
