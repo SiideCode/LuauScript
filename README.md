@@ -1,5 +1,10 @@
 # LuauScript
 
-LuauScript, like most other interpreted programming languages, consists of a Lexer, a Parser, a Compiler and an Interpreter.
+LuauScript is a very early development scripting language built on top of Luau for Roblox.
 
-Bytecode of LuauScript is based on (TODO: выбрать нужное из: HashLink/LuaJIT/Luau/C#).
+Main modules completion:
+
+- Lexer: ~70%
+- Parser: ~1%
+- Bytecode Generator: not started
+- VM: not started
