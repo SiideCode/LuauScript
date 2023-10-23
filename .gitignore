@@ -2,7 +2,7 @@
 /LuauScript.rbxlx
 
 # VSCode settings
-.vscode
+.vscode/
 
 # Roblox Studio lock files
 /*.rbxlx.lock
