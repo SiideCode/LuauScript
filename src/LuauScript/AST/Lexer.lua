@@ -87,7 +87,7 @@ lexerStates =
 	returnNewlineTok = 7,
 	--i hate this one
 	readStringEscape = 8,
-	--this one too
+	--and this one too
 	readStringQuoteDouble = 9
 }
 
