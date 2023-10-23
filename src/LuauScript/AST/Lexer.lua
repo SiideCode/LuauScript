@@ -30,6 +30,7 @@ resKeywords =
 	"class",
 	"interface",
 	"enum",
+	"abstract",
 	"typedef",
 	"extends",
 	"implements",
