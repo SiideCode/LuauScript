@@ -1,6 +1,6 @@
 # LuauScript
 
-LuauScript is a very early development scripting language built on of Luau for Roblox.
+LuauScript is a very early development Haxe/ActionScript 3.0 based scripting language with a compiler and (someday) a vm written in Luau for Roblox.
 
 Main modules completion:
 
