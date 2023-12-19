@@ -1,5 +1,6 @@
 --!strict
 local Token = {}
+Token.__index = Token
 
 local posModule = require(script.Parent.Pos)
 
@@ -142,7 +143,6 @@ Token.tokT =
 function Token:new(type:number, value:string?, position:posModule)
 	local instance = {}
 	setmetatable(instance, self)
-	self.__index = self
 
 	--number
 	instance.type = type
