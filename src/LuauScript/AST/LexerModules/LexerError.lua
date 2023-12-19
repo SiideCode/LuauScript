@@ -6,7 +6,6 @@ function LexerError:new(msg:string, lastToken:tok, fileRef:string?)
 	local lexerrInstance = {}
 
 	setmetatable(lexerrInstance, self)
-	self.__index = self
 
 	lexerrInstance.msg = msg
 	lexerrInstance.lastToken = lastToken
