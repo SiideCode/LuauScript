@@ -5,7 +5,7 @@
 /Packages
 
 # Rojo project files and aftman
-/*.project.json
+/default.project.json
 /aftman.toml
 
 # VSCode settings

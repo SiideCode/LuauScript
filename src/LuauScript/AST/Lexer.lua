@@ -95,16 +95,6 @@ local lexerStates =
 --[[
 	FIXME: Fix all escapes outputting in a COMPLETELY wrong way:
 
-	[20] =  ▼  {
-        ["position"] =  ▶ {...},
-        ["type"] = 69,
-        ["value"] = """
-    },
-    [21] =  ▼  {
-        ["position"] =  ▶ {...},
-        ["type"] = 71,
-        ["value"] = ""
-    },
     [22] =  ▼  {
         ["position"] =  ▶ {...},
         ["type"] = 72,
