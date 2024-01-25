@@ -1,6 +1,10 @@
 # Project place file
 /LuauScript.rbxlx
 
+# Rojo project files and aftman
+/*.project.json
+/aftman.toml
+
 # VSCode settings
 .vscode/
 
