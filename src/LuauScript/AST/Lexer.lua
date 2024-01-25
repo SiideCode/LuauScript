@@ -22,7 +22,7 @@ local lexerState = 1
 local returnToState = 1
 
 --List of reserved keywords
-resKeywords =
+local resKeywords =
 {
 	"package",
 	"import",
@@ -70,7 +70,7 @@ resKeywords =
 }
 
 --List of all lexer states for convinience
-lexerStates =
+local lexerStates =
 {
 	--standard state, tries to find normal tokens
 	seekTokens = 1,
@@ -91,6 +91,172 @@ lexerStates =
 	--reads and returns a double quote of a string
 	readStringQuoteDouble = 9
 }
+
+--[[
+	FIXME: Fix all escapes outputting in a COMPLETELY wrong way:
+
+	[20] =  ▼  {
+        ["position"] =  ▶ {...},
+        ["type"] = 69,
+        ["value"] = """
+    },
+    [21] =  ▼  {
+        ["position"] =  ▶ {...},
+        ["type"] = 71,
+        ["value"] = ""
+    },
+    [22] =  ▼  {
+        ["position"] =  ▶ {...},
+        ["type"] = 72,
+        ["value"] = "\"
+    },
+    [23] =  ▼  {
+        ["position"] =  ▶ {...},
+        ["type"] = 71,
+        ["value"] = "n"
+    },
+    [24] =  ▼  {
+        ["position"] =  ▶ {...},
+        ["type"] = 72,
+        ["value"] = "\"
+    },
+    [25] =  ▼  {
+        ["position"] =  ▶ {...},
+        ["type"] = 71,
+        ["value"] = "n"
+    },
+    [26] =  ▼  {
+		["position"] =  ▶ {...},
+		["type"] = 72,
+		["value"] = "\"
+    },
+    [27] =  ▼  {
+        ["position"] =  ▶ {...},
+        ["type"] = 71,
+        ["value"] = "r"
+    },
+    [28] =  ▼  {
+        ["position"] =  ▶ {...},
+        ["type"] = 72,
+        ["value"] = "\r"
+    },
+    [29] =  ▼  {
+        ["position"] =  ▶ {...},
+        ["type"] = 71,
+        ["value"] = ""
+    }
+]]
+
+local function stringEscapeRead(tokPos:posMod)
+	lexerState = returnToState
+	local tokContent = ""
+	print(buf[curposreal])
+
+	while buf[curposreal] ~= " " and buf[curposreal] ~= "\"" and (buf[curposreal] ~= "\n" or buf[curposreal] ~= "\r") and buf[curposreal+1] ~= "\\" do
+		print(buf[curposreal])
+		tokContent ..= buf[curposreal]
+		curpos += 1
+		curposreal += 1
+		tokPos.endPos += 1
+		if curposreal == #buf then
+			error(errorMod:new("Invalid string escape.", tokenMod:new(tokenMod.tokT.strEscape, tokContent, tokPos), fileref), 1)
+		end
+	end
+
+	if buf[curposreal] == "\\" then
+		lexerState = lexerStates.readStringEscape
+	end
+
+	print(buf[curposreal])
+	return tokenMod:new(tokenMod.tokT.strEscape, tokContent, tokPos)
+end
+
+--[[
+	Reads a double quoted string, goes to state returnNewlineTok if it finds a \n or \r, if there isn't, it just returns to state seekTokens.
+]]
+local function doubleQuoteStringRead(tokPos:posMod)
+	local tokContent = ""
+	print(buf[curposreal])
+
+	while buf[curposreal] ~= "\"" and (buf[curposreal] ~= "\n" or buf[curposreal] ~= "\r") and buf[curposreal] ~= "\\" do
+		print(buf[curposreal])
+		tokContent ..= buf[curposreal]
+		curpos += 1
+		curposreal += 1
+		tokPos.endPos += 1
+		if curposreal == #buf then
+			error(errorMod:new("Unclosed string.", tokenMod:new(tokenMod.tokT.strLetters, tokContent, tokPos), fileref), 1)
+		end
+	end
+
+	if buf[curposreal] == "\n" or buf[curposreal] == "\r" then
+		lexerState = lexerStates.returnNewlineTok
+		returnToState = lexerStates.readStringTwoQuotes
+	elseif buf[curposreal] == "\\" and tokContent == nil then
+		return stringEscapeRead(tokPos)
+	elseif buf[curposreal] == "\\" then
+		lexerState = lexerStates.readStringEscape
+		returnToState = lexerStates.readStringTwoQuotes
+	elseif buf[curposreal] == "\"" then
+		lexerState = lexerStates.readStringQuoteDouble
+		returnToState = lexerStates.seekTokens
+	else
+		lexerState = lexerStates.seekTokens
+		returnToState = lexerStates.seekTokens
+	end
+
+	print("state:", lexerState, "state to return to:", returnToState)
+
+	print(buf[curposreal])
+	return tokenMod:new(tokenMod.tokT.strLetters, tokContent, tokPos)
+end
+
+--[[
+	A function that checks if there's a newline.
+	It's here for readability, and it makes the code reusable
+]]
+local function doNewlineCheck(tokPos:posMod)
+	lexerState = returnToState
+	print("state:", lexerState, "state to return:", returnToState)
+
+	if buf[curposreal] == "\n" or buf[curposreal] == "\r" then
+		tokPos.startPos = curpos
+		if buf[curposreal] == "\r" and buf[curposreal+1] == "\n" then
+			tokPos.endPos = curpos + 1
+			curline += 1
+			curpos = 2
+			print(buf[curposreal])
+			curposreal += 2
+			return tokenMod:new(tokenMod.tokT.newlineReturn, "\r\n", tokPos)
+		else
+			local whar = "\n"
+			if buf[curposreal-1] == "\r" then
+				whar = "\r"
+			end
+
+			tokPos.endPos = curpos
+			curline += 1
+			curpos = 1
+			print(buf[curposreal])
+			curposreal += 1
+
+			return tokenMod:new(tokenMod.tokT.newline, whar, tokPos)
+		end
+	end
+	return nil
+end
+
+local function readStringQuoteDouble(tokPos:posMod)
+	lexerState = returnToState
+	print("state:", lexerState, "state to return:", returnToState)
+
+	tokPos.startPos = curpos
+	tokPos.endPos = curpos
+	curpos += 1
+	curposreal += 1
+
+	return tokenMod:new(tokenMod.tokT.str, "\"", tokPos)
+end
 
 --[[
 	This sets the current script for the lexer or something idk
@@ -620,118 +786,6 @@ function Lexer:nextToken()
 		end
 	end
 	error(errorMod:new("Unknown symbol.", tokenMod:new(0, buf[curposreal], tokPos), fileref), 1)
-end
-
---[[
-	TODO: Fix escapes, they cause an infinite yield.
-	Reads a double quoted string, goes to state returnNewlineTok if it finds a \n or \r, if there isn't, it just returns to state seekTokens.
-]]
-function doubleQuoteStringRead(tokPos:posMod)
-	local tokContent = ""
-	print(buf[curposreal])
-
-	while buf[curposreal] ~= "\"" and (buf[curposreal] ~= "\n" or buf[curposreal] ~= "\r") and buf[curposreal] ~= "\\" do
-		print(buf[curposreal])
-		tokContent ..= buf[curposreal]
-		curpos += 1
-		curposreal += 1
-		tokPos.endPos += 1
-		if curposreal == #buf then
-			error(errorMod:new("Unclosed string.", tokenMod:new(tokenMod.tokT.strLetters, tokContent, tokPos), fileref), 1)
-		end
-	end
-
-	if buf[curposreal] == "\n" or buf[curposreal] == "\r" then
-		lexerState = lexerStates.returnNewlineTok
-		returnToState = lexerStates.readStringTwoQuotes
-	elseif buf[curposreal] == "\\" and tokContent == nil then
-		return stringEscapeRead(tokPos)
-	elseif buf[curposreal] == "\\" then
-		lexerState = lexerStates.readStringEscape
-		returnToState = lexerStates.readStringTwoQuotes
-	elseif buf[curposreal] == "\"" then
-		lexerState = lexerStates.readStringQuoteDouble
-		returnToState = lexerStates.seekTokens
-	else
-		lexerState = lexerStates.seekTokens
-		returnToState = lexerStates.seekTokens
-	end
-
-	print("state:", lexerState, "state to return to:", returnToState)
-
-	print(buf[curposreal])
-	return tokenMod:new(tokenMod.tokT.strLetters, tokContent, tokPos)
-end
-
-function stringEscapeRead(tokPos:posMod)
-	lexerState = returnToState
-	local tokContent = ""
-	print(buf[curposreal])
-
-	while buf[curposreal] ~= " " and buf[curposreal] ~= "\"" and (buf[curposreal] ~= "\n" or buf[curposreal] ~= "\r") and buf[curposreal+1] ~= "\\" do
-		print(buf[curposreal])
-		tokContent ..= buf[curposreal]
-		curpos += 1
-		curposreal += 1
-		tokPos.endPos += 1
-		if curposreal == #buf then
-			error(errorMod:new("Invalid string escape.", tokenMod:new(tokenMod.tokT.strLetters, tokContent, tokPos), fileref), 1)
-		end
-	end
-
-	if buf[curposreal] == "\\" then
-		lexerState = lexerStates.readStringEscape
-	end
-
-	print(buf[curposreal])
-	return tokenMod:new(tokenMod.tokT.strEscape, tokContent, tokPos)
-end
-
---[[
-	A function that checks if there's a newline.
-	It's here for readability, and it makes the code reusable
-]]
-function doNewlineCheck(tokPos:posMod)
-	lexerState = returnToState
-	print("state:", lexerState, "state to return:", returnToState)
-
-	if buf[curposreal] == "\n" or buf[curposreal] == "\r" then
-		tokPos.startPos = curpos
-		if buf[curposreal] == "\r" and buf[curposreal+1] == "\n" then
-			tokPos.endPos = curpos + 1
-			curline += 1
-			curpos = 2
-			print(buf[curposreal])
-			curposreal += 2
-			return tokenMod:new(tokenMod.tokT.newlineReturn, "\r\n", tokPos)
-		else
-			local whar = "\n"
-			if buf[curposreal-1] == "\r" then
-				whar = "\r"
-			end
-
-			tokPos.endPos = curpos
-			curline += 1
-			curpos = 1
-			print(buf[curposreal])
-			curposreal += 1
-
-			return tokenMod:new(tokenMod.tokT.newline, whar, tokPos)
-		end
-	end
-	return nil
-end
-
-function readStringQuoteDouble(tokPos:posMod)
-	lexerState = returnToState
-	print("state:", lexerState, "state to return:", returnToState)
-
-	tokPos.startPos = curpos
-	tokPos.endPos = curpos
-	curpos += 1
-	curposreal += 1
-
-	return tokenMod:new(tokenMod.tokT.str, "\"", tokPos)
 end
 
 return Lexer

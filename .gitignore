@@ -1,8 +1,15 @@
 # Project place file
 /LuauScript.rbxlx
 
+# Packages
+/Packages
+
+# Rojo project files and aftman
+/*.project.json
+/aftman.toml
+
 # VSCode settings
-.vscode/
+/.vscode
 
 # Roblox Studio lock files
 /*.rbxlx.lock

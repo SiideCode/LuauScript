@@ -66,7 +66,9 @@ xpcall(
 		print(table:unpack(lel))
 	end)
 
-print(toks)
+for i, k in ipairs(toks) do
+	print(i, k, "[tokName] = " .. tokModule.tokTMirror[k["type"]])
+end
 
 -------------------------------------------------------------------------------------------
 
@@ -74,7 +76,7 @@ local execEnd = os.time()
 
 print(string.format("executed in %dms (%d - %d)\n", execEnd - execStart, execEnd, execStart))
 
--- Thread (actor) creation
+-- Thread (actor) creation (possibly??)
 --[[
 local aaa = script:Clone()
 aaa.Parent = workspace.Threads

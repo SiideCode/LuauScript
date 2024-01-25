@@ -2,9 +2,12 @@
 local Token = {}
 Token.__index = Token
 
-local posModule = require(script.Parent.Pos)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
---enum
+local posModule = require(script.Parent.Pos)
+local TableUtil = require(ReplicatedStorage.Packages.tableutil)
+
+--TODO: make a mirror of this map (using my custom table util module)
 Token.tokT =
 {
 	unknown = 0,						-- 0: unknown symbol
@@ -106,7 +109,7 @@ Token.tokT =
 	kvOverride = 91,					-- 91: override modifiers, overloads the function
 	kvDynamic = 92,						-- 92: dynamic access to a variable i guess
 	kvInline = 93,						-- 93: inline keyword
-	--TODO: decide if it's needed later
+	--TODO: actually uncomment this when i'm not lazy
 	--kvMacro = 94,						-- 94: haxe macro modifier.
 	kvFinal = 94,						-- 94: constant (might get unused, cause it can only be emulated)
 	kvOperator = 95,					-- 95: operator function modifier keyword
@@ -138,6 +141,8 @@ Token.tokT =
 	ident = 121,						-- 121: packages and variables.
 	identT = 122						-- 122: classes and types
 }
+
+Token.tokTMirror = TableUtil.DictUtil.mirrorDictionary(Token.tokT)
 
 -- Create a new token, can either contain a string as a value, or nothing
 function Token:new(type:number, value:string?, position:posModule)
