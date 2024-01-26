@@ -92,72 +92,137 @@ local lexerStates =
 	readStringQuoteDouble = 9
 }
 
---[[
-	FIXME: Fix all escapes outputting in a COMPLETELY wrong way:
+local function readStringQuoteDouble(tokPos:posMod)
+	lexerState = returnToState
+	print("state:", lexerState, "state to return:", returnToState)
 
-    [22] =  ▼  {
-        ["position"] =  ▶ {...},
-        ["type"] = 72,
-        ["value"] = "\"
-    },
-    [23] =  ▼  {
-        ["position"] =  ▶ {...},
-        ["type"] = 71,
-        ["value"] = "n"
-    },
-    [24] =  ▼  {
-        ["position"] =  ▶ {...},
-        ["type"] = 72,
-        ["value"] = "\"
-    },
-    [25] =  ▼  {
-        ["position"] =  ▶ {...},
-        ["type"] = 71,
-        ["value"] = "n"
-    },
-    [26] =  ▼  {
-		["position"] =  ▶ {...},
-		["type"] = 72,
-		["value"] = "\"
-    },
-    [27] =  ▼  {
-        ["position"] =  ▶ {...},
-        ["type"] = 71,
-        ["value"] = "r"
-    },
-    [28] =  ▼  {
-        ["position"] =  ▶ {...},
-        ["type"] = 72,
-        ["value"] = "\r"
-    },
-    [29] =  ▼  {
-        ["position"] =  ▶ {...},
-        ["type"] = 71,
-        ["value"] = ""
-    }
-]]
+	tokPos.startPos = curpos
+	tokPos.endPos = curpos
+	curpos += 1
+	curposreal += 1
 
+	return tokenMod:new(tokenMod.tokT.str, "\"", tokPos)
+end
+
+--TODO: revamp this someday, i don't like it.
 local function stringEscapeRead(tokPos:posMod)
 	lexerState = returnToState
 	local tokContent = ""
-	print(buf[curposreal])
 
-	while buf[curposreal] ~= " " and buf[curposreal] ~= "\"" and (buf[curposreal] ~= "\n" or buf[curposreal] ~= "\r") and buf[curposreal+1] ~= "\\" do
-		print(buf[curposreal])
-		tokContent ..= buf[curposreal]
-		curpos += 1
-		curposreal += 1
-		tokPos.endPos += 1
-		if curposreal == #buf then
-			error(errorMod:new("Invalid string escape.", tokenMod:new(tokenMod.tokT.strEscape, tokContent, tokPos), fileref), 1)
-		end
-	end
+	tokPos.startPos = curpos
+	tokPos.endPos = curpos
 
 	if buf[curposreal] == "\\" then
-		lexerState = lexerStates.readStringEscape
+		tokContent ..= "\\"
+		curposreal += 1
+		curpos += 1
+	else
+		error("A STRING ESCAPE ERROR OCCURED! PLEASE, SEND THIS TO THE DEVELOPER!")
 	end
 
-	print(buf[curposreal])
+	if buf[curposreal] == "r" or buf[curposreal] == "n" or buf[curposreal] == "t" 
+	or buf[curposreal] == "\"" or buf[curposreal] == "'" or buf[curposreal] == "\\" then
+		tokContent ..= buf[curposreal]
+		curposreal += 1
+		curpos += 1
+		tokPos.endPos += 1
+	elseif string.find(buf[curposreal], "%d") then
+		tokContent ..= buf[curposreal]
+
+		local poo = 1
+		for i = 1, 2, 1 do
+			if string.find(buf[curposreal+poo], "%d") then
+				tokContent ..= buf[curposreal+poo]
+				poo += 1
+			else
+				break;
+			end
+		end
+
+		curposreal += poo
+		curpos += poo
+		tokPos.endPos += poo - 1
+	elseif buf[curposreal] == "x" then
+		tokContent ..= buf[curposreal]
+		print(buf[curposreal])
+		tokPos.endPos += 1
+		print(buf[curposreal])
+
+		local poo = 1
+		for i = 1, 2, 1 do
+			if string.find(buf[curposreal+poo], "%x") then
+				tokContent ..= buf[curposreal+poo]
+				poo += 1
+			else
+				break;
+			end
+		end
+
+		if poo ~=1 then
+			curposreal += poo
+			curpos += poo
+			tokPos.endPos += poo - 1
+		else
+			error(errorMod:new("Invalid string escape.", tokenMod:new(tokenMod.tokT.strEscape, tokContent, tokPos), fileref), 1)
+		end
+	elseif buf[curposreal] == "u" and buf[curposreal+1] ~= "{" then
+		tokContent ..= buf[curposreal]
+		tokPos.endPos += 1
+
+		local poo = 1
+		for i = 1, 4, 1 do
+			if string.find(buf[curposreal+poo], "%x") then
+				tokContent ..= buf[curposreal+poo]
+				poo += 1
+			else
+				break;
+			end
+		end
+
+		if poo ~= 1 then
+			curposreal += poo
+			curpos += poo
+			tokPos.endPos += poo - 1
+		else
+			error(errorMod:new("Invalid string escape.", tokenMod:new(tokenMod.tokT.strEscape, tokContent, tokPos), fileref), 1)
+		end
+	elseif buf[curposreal] == "u" and buf[curposreal+1] == "{" then
+		tokContent ..= buf[curposreal] .. buf[curposreal+1]
+		curposreal += 1
+		curpos += 1
+		tokPos.endPos += 1
+
+		local poo = 1
+		for i = 1, 6, 1 do
+			if string.find(buf[curposreal+poo], "%x") then
+				tokContent ..= buf[curposreal+poo]
+				poo += 1
+			else
+				break;
+			end
+		end
+
+		if poo ~=1 then
+			if buf[curposreal+poo] == "}" then
+				tokContent ..= "}"
+				curposreal += poo + 1
+				curpos += poo + 1
+				tokPos.endPos += poo
+			else
+				curposreal += poo
+				curpos += poo
+				tokPos.endPos += poo - 1
+				error(errorMod:new("Invalid string escape.", tokenMod:new(tokenMod.tokT.strEscape, tokContent, tokPos), fileref), 1)
+			end
+		else
+			error(errorMod:new("Invalid string escape.", tokenMod:new(tokenMod.tokT.strEscape, tokContent, tokPos), fileref), 1)
+		end
+	else
+		error(errorMod:new("Invalid string escape.", tokenMod:new(tokenMod.tokT.strEscape, tokContent, tokPos), fileref), 1)
+	end
+
+	print(tokContent)
+
 	return tokenMod:new(tokenMod.tokT.strEscape, tokContent, tokPos)
 end
 
@@ -167,13 +232,16 @@ end
 local function doubleQuoteStringRead(tokPos:posMod)
 	local tokContent = ""
 	print(buf[curposreal])
+	tokPos.startPos = curpos
+	tokPos.endPos = curpos
 
 	while buf[curposreal] ~= "\"" and (buf[curposreal] ~= "\n" or buf[curposreal] ~= "\r") and buf[curposreal] ~= "\\" do
 		print(buf[curposreal])
 		tokContent ..= buf[curposreal]
-		curpos += 1
 		curposreal += 1
+		curpos += 1
 		tokPos.endPos += 1
+		print(tokPos)
 		if curposreal == #buf then
 			error(errorMod:new("Unclosed string.", tokenMod:new(tokenMod.tokT.strLetters, tokContent, tokPos), fileref), 1)
 		end
@@ -182,11 +250,15 @@ local function doubleQuoteStringRead(tokPos:posMod)
 	if buf[curposreal] == "\n" or buf[curposreal] == "\r" then
 		lexerState = lexerStates.returnNewlineTok
 		returnToState = lexerStates.readStringTwoQuotes
-	elseif buf[curposreal] == "\\" and tokContent == nil then
+	elseif buf[curposreal] == "\\" and tokContent == "" then
 		return stringEscapeRead(tokPos)
 	elseif buf[curposreal] == "\\" then
 		lexerState = lexerStates.readStringEscape
 		returnToState = lexerStates.readStringTwoQuotes
+	elseif buf[curposreal] == "\"" and tokContent == "" then
+		lexerState = lexerStates.seekTokens
+		returnToState = lexerStates.seekTokens
+		return readStringQuoteDouble(tokPos)
 	elseif buf[curposreal] == "\"" then
 		lexerState = lexerStates.readStringQuoteDouble
 		returnToState = lexerStates.seekTokens
@@ -236,18 +308,6 @@ local function doNewlineCheck(tokPos:posMod)
 	return nil
 end
 
-local function readStringQuoteDouble(tokPos:posMod)
-	lexerState = returnToState
-	print("state:", lexerState, "state to return:", returnToState)
-
-	tokPos.startPos = curpos
-	tokPos.endPos = curpos
-	curpos += 1
-	curposreal += 1
-
-	return tokenMod:new(tokenMod.tokT.str, "\"", tokPos)
-end
-
 --[[
 	This sets the current script for the lexer or something idk
 ]]
@@ -271,7 +331,7 @@ function Lexer:nextToken()
 	local tokPos = posMod:new(0, 0, 0)
 
 	local function proceed(amount:number?)
-		if amount then
+		if amount and amount ~= 1 then
 			tokPos.endPos += (amount - 1)
 			curposreal += amount
 			curpos += amount

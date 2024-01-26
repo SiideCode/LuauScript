@@ -5,7 +5,7 @@ package;
 
 class Main
 {
-	var hey = "hiya\n\r\n\n";
+	var hey = "hiya\n\r\n\n\u{12345f}\u12ff\123\xff";
 }
 ]]
 --[[
@@ -62,8 +62,12 @@ xpcall(
 		end
 	end,
 
-	function(lel:lexerErr)
-		print(table:unpack(lel))
+	function(lel:any)
+		if type(lel) == "table" then
+			print(table:unpack(lel))
+		else
+			print(lel)
+		end
 	end)
 
 for i, k in ipairs(toks) do
