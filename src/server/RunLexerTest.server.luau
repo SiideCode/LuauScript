@@ -44,23 +44,28 @@ local tokModule = require(workspace.LuauScript.AST.LexerModules.Token)
 
 -------------------------------------------------------------------------------------------
 
-lexerModule:setScript(testScript, "test_script.txt")
+local lexer = lexerModule.new()
+
+lexer:setScript(testScript, "test_script.txt")
 
 local toks = {}
-local a = lexerModule:nextToken()
+local a = lexer:nextToken()
 table.insert(toks, a)
+
+local hhh =
+function()
+	while a and (a.type ~= tokModule.tokT.eof) do
+		a = lexer:nextToken()
+		table.insert(toks, a)
+	end
+	if a.type == tokModule.tokT.eof then
+		print(a.type)
+	end
+end
 
 -- don't ask me about the xpcall
 xpcall(
-	function()
-		while a and a.type ~= tokModule.tokT.eof do
-			a = lexerModule:nextToken()
-			table.insert(toks, a)
-		end
-		if a.type == tokModule.tokT.eof then
-			print(a.type)
-		end
-	end,
+	hhh(),
 
 	function(lel:any)
 		if type(lel) == "table" then
