@@ -645,19 +645,19 @@ function Lexer:nextToken()
 		if isfloat then
 			if hasexponent then
 				if someth:sub(1,1) == "." then
-					return {Lexer.tokT.peFloat, tonumber(someth), tokPos}
+					return {Lexer.tokT.peFloat, someth, tokPos}
 				else
-					return {Lexer.tokT.eFloat, tonumber(someth), tokPos}
+					return {Lexer.tokT.eFloat, someth, tokPos}
 				end
 			elseif someth:sub(1,1) == "." then
-				return {Lexer.tokT.pFloat, tonumber(someth), tokPos}
+				return {Lexer.tokT.pFloat, someth, tokPos}
 			else
-				return {Lexer.tokT.float, tonumber(someth), tokPos}
+				return {Lexer.tokT.float, someth, tokPos}
 			end
 		elseif ishex then
-			return {Lexer.tokT.hex, tonumber(someth), tokPos}
+			return {Lexer.tokT.hex, someth, tokPos}
 		else
-			return {Lexer.tokT.int, tonumber(someth), tokPos}
+			return {Lexer.tokT.int, someth, tokPos}
 		end
 	--we do some op checks
 	elseif buf[curposreal] == ";" then
