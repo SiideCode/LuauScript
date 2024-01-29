@@ -22,8 +22,7 @@ type Token = {
 type LexerError = {
 	msg:string,
 	lastToken:Token,
-	fileRef:string?,
-	tokStr:string?
+	fileRef:string?
 }
 
 --current position in string
@@ -245,20 +244,28 @@ local lexerStates =
 	returnNewlineTok = 7,
 	--reads and returns a string escape
 	readStringEscape = 8,
-	--reads and returns a double quote of a string
-	readStringQuoteDouble = 9
+	--reads and returns a quote of a string
+	readStringQuote = 9
 }
 
-local function readStringQuoteDouble(tokPos:Position)
+local function readStringQuote(tokPos:Position)
 	lexerState = returnToState
 	print("state:", lexerState, "state to return:", returnToState)
+
+	local crol = ""
+
+	if buf[curposreal] == "\"" then
+		crol = "\""
+	elseif buf[curposreal] == "\'" then
+		crol = "'"
+	end
 
 	tokPos.startPos = curpos
 	tokPos.endPos = curpos
 	curpos += 1
 	curposreal += 1
 
-	return {Lexer.tokT.str, "\"", tokPos}
+	return {type = Lexer.tokT.str, value = crol, position = tokPos}
 end
 
 --TODO: revamp this someday, i don't like it.
@@ -320,7 +327,7 @@ local function stringEscapeRead(tokPos:Position)
 			curpos += poo
 			tokPos.endPos += poo - 1
 		else
-			error({"Invalid string escape.", {Lexer.tokT.strEscape, tokContent, tokPos}, fileref}, 1)
+			error({msg = "Invalid string escape.", lastToken = {type = Lexer.tokT.strEscape, value = tokContent, position = tokPos}, fileRef = fileref}, 1)
 		end
 	elseif buf[curposreal] == "u" and buf[curposreal+1] ~= "{" then
 		tokContent ..= buf[curposreal]
@@ -341,7 +348,7 @@ local function stringEscapeRead(tokPos:Position)
 			curpos += poo
 			tokPos.endPos += poo - 1
 		else
-			error({"Invalid string escape.", {Lexer.tokT.strEscape, tokContent, tokPos}, fileref}, 1)
+			error({msg = "Invalid string escape.", lastToken = {type = Lexer.tokT.strEscape, value = tokContent, position = tokPos}, fileRef = fileref}, 1)
 		end
 	elseif buf[curposreal] == "u" and buf[curposreal+1] == "{" then
 		tokContent ..= buf[curposreal] .. buf[curposreal+1]
@@ -369,13 +376,13 @@ local function stringEscapeRead(tokPos:Position)
 				curposreal += poo
 				curpos += poo
 				tokPos.endPos += poo - 1
-				error({"Invalid string escape.", {Lexer.tokT.strEscape, tokContent, tokPos}, fileref}, 1)
+				error({msg = "Invalid string escape.", lastToken = {type = Lexer.tokT.strEscape, value = tokContent, position = tokPos}, fileRef = fileref}, 1)
 			end
 		else
-			error({"Invalid string escape.", {Lexer.tokT.strEscape, tokContent, tokPos}, fileref}, 1)
+			error({msg = "Invalid string escape.", lastToken = {type = Lexer.tokT.strEscape, value = tokContent, position = tokPos}, fileRef = fileref}, 1)
 		end
 	else
-		error({"Invalid string escape.", {Lexer.tokT.strEscape, tokContent, tokPos}, fileref}, 1)
+		error({"Invalid string escape.", {type = Lexer.tokT.strEscape, value = tokContent, position = tokPos}, fileRef = fileref}, 1)
 	end
 
 	print(tokContent)
@@ -384,15 +391,19 @@ local function stringEscapeRead(tokPos:Position)
 end
 
 --[[
-	Reads a double quoted string, goes to state returnNewlineTok if it finds a \n or \r, if there isn't, it just returns to state seekTokens.
+	Reads a double quoted string, goes to state returnNewlineTok if it finds a \n or \r,
+	if there isn't, it just returns to state seekTokens.
 ]]
-local function doubleQuoteStringRead(tokPos:Position)
+local function stringRead(tokPos:Position)
 	local tokContent = ""
 	print(buf[curposreal])
 	tokPos.startPos = curpos
 	tokPos.endPos = curpos
 
 	while buf[curposreal] ~= "\"" and (buf[curposreal] ~= "\n" or buf[curposreal] ~= "\r") and buf[curposreal] ~= "\\" do
+		if lexerState == lexerStates.readStringOneQuote and buf[curposreal] == "$" then
+			break;
+		end
 		print(buf[curposreal])
 		tokContent ..= buf[curposreal]
 		curposreal += 1
@@ -400,7 +411,7 @@ local function doubleQuoteStringRead(tokPos:Position)
 		tokPos.endPos += 1
 		print(tokPos)
 		if curposreal == #buf then
-			error({"Unclosed string.", {Lexer.tokT.strLetters, tokContent, tokPos}, fileref}, 1)
+			error({msg = "Unclosed string.", lastToken = {Lexer.tokT.strLetters, tokContent, tokPos}, fileRef = fileref}, 1)
 		end
 	end
 
@@ -415,10 +426,11 @@ local function doubleQuoteStringRead(tokPos:Position)
 	elseif buf[curposreal] == "\"" and tokContent == "" then
 		lexerState = lexerStates.seekTokens
 		returnToState = lexerStates.seekTokens
-		return readStringQuoteDouble(tokPos)
+		return readStringQuote(tokPos)
 	elseif buf[curposreal] == "\"" then
-		lexerState = lexerStates.readStringQuoteDouble
+		lexerState = lexerStates.readStringQuote
 		returnToState = lexerStates.seekTokens
+	elseif buf[curposreal] == "'" then
 	else
 		lexerState = lexerStates.seekTokens
 		returnToState = lexerStates.seekTokens
@@ -430,10 +442,6 @@ local function doubleQuoteStringRead(tokPos:Position)
 	return {Lexer.tokT.strLetters, tokContent, tokPos}
 end
 
---[[
-	A function that checks if there's a newline.
-	It's here for readability, and it makes the code reusable
-]]
 local function doNewlineCheck(tokPos:Position)
 	lexerState = returnToState
 	print("state:", lexerState, "state to return:", returnToState)
@@ -515,20 +523,18 @@ function Lexer:nextToken()
 		this handles the actions if the state isn't seekTokens
 	]]
 	if lexerState ~= lexerStates.seekTokens then
-		if lexerState == lexerStates.readStringTwoQuotes then
-			return doubleQuoteStringRead(tokPos)
-		elseif lexerState == lexerStates.readStringOneQuote then
-			return error("UNIMPLEMENTED")
-		elseif lexerState == lexerStates.readStringQuoteDouble then
-			return readStringQuoteDouble(tokPos)
+		if lexerState == lexerStates.readStringTwoQuotes or lexerState == lexerStates.readStringOneQuote then
+			return stringRead(tokPos)
+		elseif lexerState == lexerStates.readStringQuote then
+			return readStringQuote(tokPos)
 		elseif lexerState == lexerStates.readStringEscape then
 			return stringEscapeRead(tokPos)
 		elseif lexerState == lexerStates.readRegexp then
-			return error("UNIMPLEMENTED")
+			error("UNIMPLEMENTED")
 		elseif lexerState == lexerStates.readComment then
-			return error("UNIMPLEMENTED")
+			error("UNIMPLEMENTED")
 		elseif lexerState == lexerStates.readMultiComment then
-			return error("UNIMPLEMENTED")
+			error("UNIMPLEMENTED")
 		elseif lexerState == lexerStates.returnNewlineTok then
 			return doNewlineCheck(tokPos)
 		end
@@ -545,7 +551,6 @@ function Lexer:nextToken()
 			if buf[curposreal] == " " or buf[curposreal] == "\t" then
 				spacesntabs ..= buf[curposreal]
 				proceed()
-				print(buf[curposreal])
 			end
 		end
 		tokPos.endPos = curpos
@@ -567,8 +572,6 @@ function Lexer:nextToken()
 			if buf[curposreal]:find("[_%a%d]") then
 				somethingStr ..= buf[curposreal]
 				proceed()
-				print(somethingStr)
-				print(buf[curposreal])
 			end
 		end
 
@@ -577,7 +580,7 @@ function Lexer:nextToken()
 		for i in ipairs(resKeywords) do
 			if somethingStr == resKeywords[i] then
 				local aa = "kv" .. resKeywords[i]:sub(1, 1):upper() .. resKeywords[i]:sub(2)
-				return {Lexer.tokT[aa], resKeywords[i], tokPos}
+				return {type = Lexer.tokT[aa], value = resKeywords[i], position = tokPos}
 			end
 		end
 
@@ -599,7 +602,6 @@ function Lexer:nextToken()
 				while beef[strposreal] ~= "" and beef[strposreal] ~= nil and beef[strposreal] do
 					strpos += 1
 					strposreal += 1
-					print(curposreal, curpos, curline)
 				end
 				return {Lexer.tokT.ident, somethingStr, tokPos}
 			elseif curchar:find("%u") then
@@ -607,9 +609,8 @@ function Lexer:nextToken()
 					curchar = beef[strposreal]
 					strpos += 1
 					strposreal += 1
-					print(curposreal, curpos, curline)
 				end
-				return {Lexer.tokT.identT, somethingStr, tokPos}
+				return {type = Lexer.tokT.identT, value = somethingStr, position = tokPos}
 			end
 		end
 	--numbahs
@@ -645,77 +646,77 @@ function Lexer:nextToken()
 		if isfloat then
 			if hasexponent then
 				if someth:sub(1,1) == "." then
-					return {Lexer.tokT.peFloat, someth, tokPos}
+					return {type = Lexer.tokT.peFloat, value = someth, position = tokPos}
 				else
-					return {Lexer.tokT.eFloat, someth, tokPos}
+					return {type = Lexer.tokT.eFloat, value = someth, position = tokPos}
 				end
 			elseif someth:sub(1,1) == "." then
-				return {Lexer.tokT.pFloat, someth, tokPos}
+				return {type = Lexer.tokT.pFloat, value = someth, position = tokPos}
 			else
-				return {Lexer.tokT.float, someth, tokPos}
+				return {type = Lexer.tokT.float, value = someth, position = tokPos}
 			end
 		elseif ishex then
-			return {Lexer.tokT.hex, someth, tokPos}
+			return {type = Lexer.tokT.hex, value = someth, position = tokPos}
 		else
-			return {Lexer.tokT.int, someth, tokPos}
+			return {type = Lexer.tokT.int, value = someth, position = tokPos}
 		end
 	--we do some op checks
 	elseif buf[curposreal] == ";" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		proceed()
-		return {Lexer.tokT.semicolon, ";", tokPos}
+		return {type = Lexer.tokT.semicolon, value = ";", position = tokPos}
 	elseif buf[curposreal] == ":" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		proceed()
-		return {Lexer.tokT.semicolon, ":", tokPos}
+		return {type = Lexer.tokT.semicolon, value = ":", position = tokPos}
 	elseif buf[curposreal] == "." then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "." and buf[curposreal+2] == "." then
 			proceed(3)
 			tokPos.endPos += 2
-			return {Lexer.tokT.interval, "...", tokPos}
+			return {type = Lexer.tokT.interval, value = "...", position = tokPos}
 		else
 			proceed()
-			return {Lexer.tokT.dot, ".", tokPos}
+			return {type = Lexer.tokT.dot, value = ".", position = tokPos}
 		end
 	elseif buf[curposreal] == "," then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		proceed()
-		return {Lexer.tokT.comma, ",", tokPos}
+		return {type = Lexer.tokT.comma, value = ",", position = tokPos}
 	elseif buf[curposreal] == "{" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		proceed()
-		return {Lexer.tokT.cuBrakOpen, "{", tokPos}
+		return {type = Lexer.tokT.cuBrakOpen, value = "{", position = tokPos}
 	elseif buf[curposreal] == "}" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		proceed()
-		return {Lexer.tokT.cuBrakClose, "}", tokPos}
+		return {type = Lexer.tokT.cuBrakClose, value = "}", position = tokPos}
 	elseif buf[curposreal] == "(" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		proceed()
-		return {Lexer.tokT.brakOpen, "(", tokPos}
+		return {type = Lexer.tokT.brakOpen, value = "(", position = tokPos}
 	elseif buf[curposreal] == ")" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		proceed()
-		return {Lexer.tokT.brakClose, ")", tokPos}
+		return {type = Lexer.tokT.brakClose, value = ")", position = tokPos}
 	elseif buf[curposreal] == "[" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		proceed()
-		return {Lexer.tokT.sqBrakOpen, "[", tokPos}
+		return {type = Lexer.tokT.sqBrakOpen, value = "[", position = tokPos}
 	elseif buf[curposreal] == "]" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		proceed()
-		return {Lexer.tokT.sqBrakClose, "]", tokPos}
+		return {type = Lexer.tokT.sqBrakClose, value = "]", position = tokPos}
 	elseif buf[curposreal] == "\"" then
 		--[[
 			i was so happy when i made this work
@@ -724,67 +725,56 @@ function Lexer:nextToken()
 		]]
 		lexerState = lexerStates.readStringTwoQuotes
 		returnToState = lexerStates.readStringTwoQuotes
-		return readStringQuoteDouble(tokPos)
+		return readStringQuote(tokPos)
 	elseif buf[curposreal] == "'" then
-		tokPos.startPos = curpos
-		tokPos.endPos = curpos
-		local maaan = buf[curposreal]
-		proceed()
-		while buf[curposreal] ~= "'" do
-			maaan ..= buf[curposreal]
-			proceed()
-			tokPos.endPos += 1
-			if curposreal == #buf then
-				error({"Unclosed string.", {Lexer.tokT.fStr, maaan, tokPos}, fileref}, 1)
-			end
-		end
-		print(buf[curposreal])
-		return {Lexer.tokT.fStr, maaan, tokPos}
+		lexerState = lexerStates.readStringOneQuote
+		returnToState = lexerStates.readStringOneQuote
+		return readStringQuote(tokPos)
 	elseif buf[curposreal] == "+" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "=" then
 			proceed(2)
-			return {Lexer.tokT.addAssign, "+=", tokPos}
+			return {type = Lexer.tokT.addAssign, value = "+=", position = tokPos}
 		elseif buf[curposreal+1] == "+" then
 			proceed(2)
-			return {Lexer.tokT.unaryPlus, "++", tokPos}
+			return {type = Lexer.tokT.unaryPlus, value = "++", position = tokPos}
 		else
 			proceed()
-			return {Lexer.tokT.addOp, "+", tokPos}
+			return {type = Lexer.tokT.addOp, value = "+", position = tokPos}
 		end
 	elseif buf[curposreal] == "-" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "=" then
 			proceed(2)
-			return {Lexer.tokT.subAssign, "-=", tokPos}
+			return {type = Lexer.tokT.subAssign, value = "-=", position = tokPos}
 		elseif buf[curposreal+1] == "-" then
 			proceed(2)
-			return {Lexer.tokT.unaryMinus, "--", tokPos}
+			return {type = Lexer.tokT.unaryMinus, value = "--", position = tokPos}
 		elseif buf[curposreal+1] == ">" then
 			proceed(2)
-			return {Lexer.tokT.arrowF, "->", tokPos}
+			return {type = Lexer.tokT.arrowF, value = "->", position = tokPos}
 		else
 			proceed()
-			return {Lexer.tokT.subOp, "-", tokPos}
+			return {type = Lexer.tokT.subOp, value = "-", position = tokPos}
 		end
 	elseif buf[curposreal] == "*" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "=" then
 			proceed(2)
-			return {Lexer.tokT.multAssign, "*=", tokPos}
+			return {type = Lexer.tokT.multAssign, value = "*=", position = tokPos}
 		else
 			proceed()
-			return {Lexer.tokT.multOp, "*", tokPos}
+			return {type = Lexer.tokT.multOp, value = "*", position = tokPos}
 		end
 	elseif buf[curposreal] == "/" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "=" then
 			proceed(2)
-			return {Lexer.tokT.divAssign, "/=", tokPos}
+			return {type = Lexer.tokT.divAssign, value = "/=", position = tokPos}
 		elseif buf[curposreal+1] == "/" then
 			proceed(2)
 			local maythegodhelpme = "//"
@@ -793,27 +783,27 @@ function Lexer:nextToken()
 					maythegodhelpme ..= buf[curposreal]
 					proceed()
 					curline = 1
-					return {Lexer.tokT.comment, maythegodhelpme, tokPos}
+					return {type = Lexer.tokT.comment, value = maythegodhelpme, position = tokPos}
 				else
 					maythegodhelpme ..= buf[curposreal]
 					proceed()
 					print(buf[curposreal])
 				end
 			end
-			return {Lexer.tokT.comment, maythegodhelpme, tokPos}
+			return {type = Lexer.tokT.comment, value = maythegodhelpme, position = tokPos}
 		elseif buf[curposreal+1] == "*" then
 			local maythegodhelpme = buf[curposreal] .. buf[curposreal+1]
 			proceed(2)
 			while true do
 				if curposreal > #buf then
-					error({"Unclosed multiline comment.", {Lexer.tokT.multiCom, maythegodhelpme, tokPos}, fileref}, 1)
+					error({msg = "Unclosed multiline comment.", lastToken = {type = Lexer.tokT.multiCom, value = maythegodhelpme, position = tokPos}, fileRef = fileref}, 1)
 				elseif buf[curposreal] == "*" and buf[curposreal+1] == "/" then
 					print(maythegodhelpme)
 					maythegodhelpme ..= buf[curposreal] 
 					maythegodhelpme ..= buf[curposreal+1]
 					print(maythegodhelpme)
 					proceed(2)
-					return {Lexer.tokT.multiCom, maythegodhelpme, tokPos}
+					return {type = Lexer.tokT.multiCom, value = maythegodhelpme, position = tokPos}
 				else
 					maythegodhelpme ..= buf[curposreal]
 					proceed()
@@ -822,61 +812,61 @@ function Lexer:nextToken()
 			end
 		else
 			proceed()
-			return {Lexer.tokT.divOp, "/", tokPos}
+			return {type = Lexer.tokT.divOp, value = "/", position = tokPos}
 		end
 	elseif buf[curposreal] == "%" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "=" then
 			proceed(2)
-			return {Lexer.tokT.modAssign, "%=", tokPos}
+			return {type = Lexer.tokT.modAssign, value = "%=", position = tokPos}
 		else
 			proceed()
-			return {Lexer.tokT.mod, "%", tokPos}
+			return {type = Lexer.tokT.mod, value = "%", position = tokPos}
 		end
 	elseif buf[curposreal] == ">" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "=" then
 			proceed(2)
-			return {Lexer.tokT.moreOrEqual, ">=", tokPos}
+			return {type = Lexer.tokT.moreOrEqual, value = ">=", position = tokPos}
 		elseif buf[curposreal+1] == ">" then
 			if buf[curposreal+2] == "=" then
 				proceed(3)
-				return {Lexer.tokT.bitShiftRAssign, ">>=", tokPos}
+				return {type = Lexer.tokT.bitShiftRAssign, value = ">>=", position = tokPos}
 			elseif buf[curposreal+2] == ">" then
 				if buf[curposreal+3] == "=" then
 					proceed(4)
-					return {Lexer.tokT.uBitShiftRAssign, ">>>=", tokPos}
+					return {type = Lexer.tokT.uBitShiftRAssign, value = ">>>=", position = tokPos}
 				else
 					proceed(3)
-					return {Lexer.tokT.uBitShiftR, ">>>", tokPos}
+					return {type = Lexer.tokT.uBitShiftR, value = ">>>", position = tokPos}
 				end
 			else
 				proceed(2)
-				return {Lexer.tokT.bitShiftR, ">>", tokPos}
+				return {type = Lexer.tokT.bitShiftR, value = ">>", position = tokPos}
 			end
 		else
 			proceed()
-			return {Lexer.tokT.moreOp, ">", tokPos}
+			return {type = Lexer.tokT.moreOp, value = ">", position = tokPos}
 		end
 	elseif buf[curposreal] == "<" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "=" then
 			proceed(2)
-			return {Lexer.tokT.lessOrEqual, "<=", tokPos}
+			return {type = Lexer.tokT.lessOrEqual, value = "<=", position = tokPos}
 		elseif buf[curposreal+1] == "<" then
 			if buf[curposreal+2] == "=" then
 				proceed(3)
-				return {Lexer.tokT.bitShiftLAssign, "<<=", tokPos}
+				return {type = Lexer.tokT.bitShiftLAssign, "<<=", tokPos}
 			else
 				proceed(2)
-				return {Lexer.tokT.bitShiftL, "<<", tokPos}
+				return {type = Lexer.tokT.bitShiftL, value = "<<", position = tokPos}
 			end
 		else
 			proceed()
-			return {Lexer.tokT.lessOp, "<", tokPos}
+			return {type = Lexer.tokT.lessOp, value = "<", position = tokPos}
 		end
 	elseif buf[curposreal] == "|" then
 		tokPos.startPos = curpos
@@ -884,17 +874,17 @@ function Lexer:nextToken()
 		if buf[curposreal+1] == "|" then
 			if buf[curposreal+2] == "=" then
 				proceed(3)
-				return {Lexer.tokT.orAssign, "||=", tokPos}
+				return {type = Lexer.tokT.orAssign, value = "||=", position = tokPos}
 			else
 				proceed(2)
-				return {Lexer.tokT.orOp, "||", tokPos}
+				return {type = Lexer.tokT.orOp, value = "||", position = tokPos}
 			end
 		elseif buf[curposreal+1] == "=" then
 			proceed(2)
-			return {Lexer.tokT.bitOrAssign, "|=", tokPos}
+			return {type = Lexer.tokT.bitOrAssign, value = "|=", position = tokPos}
 		else
 			proceed()
-			return {Lexer.tokT.bitOr, "|", tokPos}
+			return {type = Lexer.tokT.bitOr, value = "|", position = tokPos}
 		end
 	elseif buf[curposreal] == "&" then
 		tokPos.startPos = curpos
@@ -902,17 +892,17 @@ function Lexer:nextToken()
 		if buf[curposreal+1] == "&" then
 			if buf[curposreal+2] == "=" then
 				proceed(3)
-				return {Lexer.tokT.andAssign, "&&=", tokPos}
+				return {type = Lexer.tokT.andAssign, value = "&&=", position = tokPos}
 			else
 				proceed(2)
-				return {Lexer.tokT.andOp, "&&", tokPos}
+				return {type = Lexer.tokT.andOp, value = "&&", position = tokPos}
 			end
 		elseif buf[curposreal+1] == "=" then
 			proceed(2)
-			return {Lexer.tokT.bitAndAssign, "&=", tokPos}
+			return {type = Lexer.tokT.bitAndAssign, value = "&=", position = tokPos}
 		else
 			proceed()
-			return {Lexer.tokT.bitAnd, "&", tokPos}
+			return {type = Lexer.tokT.bitAnd, value = "&", position = tokPos}
 		end
 	elseif buf[curposreal] == "?" then
 		tokPos.startPos = curpos
@@ -920,40 +910,40 @@ function Lexer:nextToken()
 		if buf[curposreal+1] == "?" then
 			if buf[curposreal+2] == "=" then
 				proceed(3)
-				return {Lexer.tokT.nullCoalAssign, "??=", tokPos}
+				return {type = Lexer.tokT.nullCoalAssign, value = "??=", position = tokPos}
 			else
 				proceed(2)
-				return {Lexer.tokT.nullCoal, "??", tokPos}
+				return {type = Lexer.tokT.nullCoal, value = "??", position = tokPos}
 			end
 		elseif buf[curposreal+1] == "." then
 			proceed(2)
-			return {Lexer.tokT.qmarkDot, "?.", tokPos}
+			return {type = Lexer.tokT.qmarkDot, value = "?.", position = tokPos}
 		else
 			proceed()
-			return {Lexer.tokT.questionOp, "?", tokPos}
+			return {type = Lexer.tokT.questionOp, value = "?", position = tokPos}
 		end
 	elseif buf[curposreal] == "^" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "=" then
 			proceed(2)
-			return {Lexer.tokT.bitXorAssign, "^=", tokPos}
+			return {type = Lexer.tokT.bitXorAssign, value = "^=", position = tokPos}
 		else
 			proceed()
-			return {Lexer.tokT.bitXor, "^", tokPos}
+			return {type = Lexer.tokT.bitXor, value = "^", position = tokPos}
 		end
 	elseif buf[curposreal] == "=" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "=" then
 			proceed(2)
-			return {Lexer.tokT.compare, "==", tokPos}
+			return {type = Lexer.tokT.compare, value = "==", position = tokPos}
 		elseif buf[curposreal+1] == ">" then
 			proceed(2)
-			return {Lexer.tokT.arrowM, "=>", tokPos}
+			return {type = Lexer.tokT.arrowM, value = "=>", position = tokPos}
 		else
 			proceed()
-			return {Lexer.tokT.assignOp, "=", tokPos}
+			return {type = Lexer.tokT.assignOp, value = "=", position = tokPos}
 		end
 	elseif buf[curposreal] == "~" then
 		tokPos.startPos = curpos
@@ -964,7 +954,7 @@ function Lexer:nextToken()
 			print(buf[curposreal])
 			while buf[curposreal] ~= "/" and buf[curposreal]:find("[%a%d\\r\\n\\t\r\n%$%.%*%+%-%^%?%[%]%(%)|{}]") do
 				if curposreal >= #buf then
-					error({"Unclosed regexp.", {Lexer.tokT.regexp, aaal, tokPos}, fileref}, 1)
+					error({msg = "Unclosed regexp.", lastToken = {type = Lexer.tokT.regexp, value = aaal, position = tokPos}, fileRef = fileref}, 1)
 				end
 				if buf[curposreal] ~= "/" and buf[curposreal]:find("[%a%d\\r\\n\\t%$%.%*%+%-%^%?%[%]%(%)|{}]") then
 					aaal ..= buf[curposreal]
@@ -972,12 +962,12 @@ function Lexer:nextToken()
 					print(aaal)
 					print(buf[curposreal])
 				elseif buf[curposreal] == "\r" or buf[curposreal] == "\n" then
-					error({"Unclosed regexp.", {Lexer.tokT.regexp, aaal, tokPos}, fileref}, 1)
+					error({msg = "Unclosed regexp.", lastToken = {type = Lexer.tokT.regexp, value = aaal, position = tokPos}, fileRef = fileref}, 1)
 				end
 			end
 
 			if curposreal >= #buf then
-				error({"Unclosed regexp.", {Lexer.tokT.regexp, aaal, tokPos}, fileref}, 1)
+				error({msg = "Unclosed regexp.", lastToken = {type = Lexer.tokT.regexp, value = aaal, position = tokPos}, fileRef = fileref}, 1)
 			end
 
 			if buf[curposreal] == "/" then
@@ -997,10 +987,10 @@ function Lexer:nextToken()
 				return nil
 			end
 		else
-			return {Lexer.tokT.bitNot, "~", tokPos}
+			return {type = Lexer.tokT.bitNot, value = "~", position = tokPos}
 		end
 	end
-	error({"Unknown symbol.", {0, buf[curposreal], tokPos}, fileref}, 1)
+	error({"Unknown symbol.", {type = 0, value = buf[curposreal], position = tokPos}, fileref}, 1)
 end
 
 return Lexer
