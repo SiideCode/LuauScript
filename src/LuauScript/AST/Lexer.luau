@@ -245,7 +245,8 @@ local lexerStates =
 	--reads and returns a string escape
 	readStringEscape = 8,
 	--reads and returns a quote of a string
-	readStringQuote = 9
+	readStringQuote = 9,
+	readFStringDollar = 10
 }
 
 local function readStringQuote(tokPos:Position)
@@ -265,6 +266,9 @@ local function readStringQuote(tokPos:Position)
 	curpos += 1
 	curposreal += 1
 
+	if crol == "'" then
+		return {type = Lexer.tokT.fStr, value = crol, position = tokPos}
+	end
 	return {type = Lexer.tokT.str, value = crol, position = tokPos}
 end
 
@@ -382,12 +386,29 @@ local function stringEscapeRead(tokPos:Position)
 			error({msg = "Invalid string escape.", lastToken = {type = Lexer.tokT.strEscape, value = tokContent, position = tokPos}, fileRef = fileref}, 1)
 		end
 	else
-		error({"Invalid string escape.", {type = Lexer.tokT.strEscape, value = tokContent, position = tokPos}, fileRef = fileref}, 1)
+		error({msg = "Invalid string escape.", lastToken = {type = Lexer.tokT.strEscape, value = tokContent, position = tokPos}, fileRef = fileref}, 1)
 	end
 
 	print(tokContent)
 
-	return {Lexer.tokT.strEscape, tokContent, tokPos}
+	return {type = Lexer.tokT.strEscape, value = tokContent, position = tokPos}
+end
+
+local function readFStringDollar(tokPos:Position)
+	local lel = buf[curposreal]
+	if buf[curposreal]:find("[_%a]") then
+		curpos += 1
+		curposreal += 1
+		while buf[curposreal]:find("[_%a%d]") do
+			curpos += 1
+			curposreal += 1
+			tokPos.endPos += 1
+			lel ..= buf[curposreal]
+		end
+	else
+		error({msg = "Nothing to format", lastToken = {type = Lexer.tokT.fStrDollarContent, value = lel, position = tokPos}, 1})
+	end
+	return {type = Lexer.tokT.fStrDollarContent, value = lel, position = tokPos}
 end
 
 --[[
@@ -400,37 +421,42 @@ local function stringRead(tokPos:Position)
 	tokPos.startPos = curpos
 	tokPos.endPos = curpos
 
-	while buf[curposreal] ~= "\"" and (buf[curposreal] ~= "\n" or buf[curposreal] ~= "\r") and buf[curposreal] ~= "\\" do
-		if lexerState == lexerStates.readStringOneQuote and buf[curposreal] == "$" then
-			break;
-		end
-		print(buf[curposreal])
-		tokContent ..= buf[curposreal]
-		curposreal += 1
-		curpos += 1
-		tokPos.endPos += 1
-		print(tokPos)
-		if curposreal == #buf then
-			error({msg = "Unclosed string.", lastToken = {Lexer.tokT.strLetters, tokContent, tokPos}, fileRef = fileref}, 1)
+	if buf[curposreal] ~= "$" and lexerState ~= lexerStates.readStringOneQuote then
+		while buf[curposreal] ~= "\"" and (buf[curposreal] ~= "\n" or buf[curposreal] ~= "\r") and buf[curposreal] ~= "\\" do
+			print(buf[curposreal])
+			tokContent ..= buf[curposreal]
+			curposreal += 1
+			curpos += 1
+			tokPos.endPos += 1
+			print(tokPos)
+			if curposreal == #buf then
+				error({msg = "Unclosed string.", lastToken = {Lexer.tokT.strLetters, tokContent, tokPos}, fileRef = fileref}, 1)
+			end
 		end
 	end
 
 	if buf[curposreal] == "\n" or buf[curposreal] == "\r" then
-		lexerState = lexerStates.returnNewlineTok
 		returnToState = lexerStates.readStringTwoQuotes
+		lexerState = lexerStates.returnNewlineTok
 	elseif buf[curposreal] == "\\" and tokContent == "" then
 		return stringEscapeRead(tokPos)
 	elseif buf[curposreal] == "\\" then
+		returnToState = lexerState
 		lexerState = lexerStates.readStringEscape
-		returnToState = lexerStates.readStringTwoQuotes
-	elseif buf[curposreal] == "\"" and tokContent == "" then
+	elseif (buf[curposreal] == "\"" or buf[curposreal] == "'") and tokContent == "" then
 		lexerState = lexerStates.seekTokens
 		returnToState = lexerStates.seekTokens
 		return readStringQuote(tokPos)
-	elseif buf[curposreal] == "\"" then
+	elseif (buf[curposreal] == "\"" or buf[curposreal] == "'") then
 		lexerState = lexerStates.readStringQuote
 		returnToState = lexerStates.seekTokens
-	elseif buf[curposreal] == "'" then
+	elseif buf[curposreal] == "$" and tokContent == "" and lexerState == lexerStates.readStringOneQuote then
+		returnToState = lexerState
+		lexerState = lexerStates.readFStringDollar
+		return readFStringDollar(tokPos)
+	elseif buf[curposreal] == "$" and lexerState == lexerStates.readStringOneQuote then
+		returnToState = lexerState
+		lexerState = lexerStates.readFStringDollar
 	else
 		lexerState = lexerStates.seekTokens
 		returnToState = lexerStates.seekTokens
@@ -439,7 +465,7 @@ local function stringRead(tokPos:Position)
 	print("state:", lexerState, "state to return to:", returnToState)
 
 	print(buf[curposreal])
-	return {Lexer.tokT.strLetters, tokContent, tokPos}
+	return {type = Lexer.tokT.strLetters, value = tokContent, position = tokPos}
 end
 
 local function doNewlineCheck(tokPos:Position)
@@ -454,7 +480,7 @@ local function doNewlineCheck(tokPos:Position)
 			curpos = 2
 			print(buf[curposreal])
 			curposreal += 2
-			return {Lexer.tokT.newlineReturn, "\r\n", tokPos}
+			return {type = Lexer.tokT.newlineReturn, value = "\r\n", position = tokPos}
 		else
 			local whar = "\n"
 			if buf[curposreal-1] == "\r" then
@@ -467,7 +493,7 @@ local function doNewlineCheck(tokPos:Position)
 			print(buf[curposreal])
 			curposreal += 1
 
-			return {Lexer.tokT.newline, whar, tokPos}
+			return {type = Lexer.tokT.newline, value = whar, position = tokPos}
 		end
 	end
 	return nil
@@ -518,10 +544,6 @@ function Lexer:nextToken()
 
 	tokPos.line = curline
 
-	--[[
-		if we're not seeking normal tokens, then we're seeking something else.
-		this handles the actions if the state isn't seekTokens
-	]]
 	if lexerState ~= lexerStates.seekTokens then
 		if lexerState == lexerStates.readStringTwoQuotes or lexerState == lexerStates.readStringOneQuote then
 			return stringRead(tokPos)
@@ -554,16 +576,14 @@ function Lexer:nextToken()
 			end
 		end
 		tokPos.endPos = curpos
-		return {Lexer.tokT.tab, spacesntabs, tokPos}
+		return {type = Lexer.tokT.tab, value = spacesntabs, position = tokPos}
 	end
 
-	--check if there are newlines, if there are, then we return
 	local apossiblenewline = doNewlineCheck(tokPos)
 	if apossiblenewline ~= nil then
 		return apossiblenewline
 	end
 
-	--we iterate through keywords... yeah... and if there's no match we assume it's a class/function/variable/module/whatever
 	if buf[curposreal]:find("[_%a]") then
 		local somethingStr = ""
 		tokPos.startPos = curpos
@@ -585,7 +605,6 @@ function Lexer:nextToken()
 		end
 
 		if somethingStr:sub(1):find("[_%l%u]") then
-			local curchar = ""
 			local strposreal = 0
 			local strpos = 0
 			local beef = somethingStr:split("")
@@ -604,16 +623,15 @@ function Lexer:nextToken()
 					strposreal += 1
 				end
 				return {Lexer.tokT.ident, somethingStr, tokPos}
-			elseif curchar:find("%u") then
-				while curchar ~= "" and curchar ~= nil and curchar do
-					curchar = beef[strposreal]
+			elseif beef[strposreal]:find("%u") then
+				while beef[strposreal] ~= "" and beef[strposreal] ~= nil and beef[strposreal] do
+					beef[strposreal] = beef[strposreal]
 					strpos += 1
 					strposreal += 1
 				end
 				return {type = Lexer.tokT.identT, value = somethingStr, position = tokPos}
 			end
 		end
-	--numbahs
 	elseif buf[curposreal]:find("%d") then
 		local someth = ""
 		local isfloat = false
@@ -660,7 +678,6 @@ function Lexer:nextToken()
 		else
 			return {type = Lexer.tokT.int, value = someth, position = tokPos}
 		end
-	--we do some op checks
 	elseif buf[curposreal] == ";" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
@@ -718,11 +735,6 @@ function Lexer:nextToken()
 		proceed()
 		return {type = Lexer.tokT.sqBrakClose, value = "]", position = tokPos}
 	elseif buf[curposreal] == "\"" then
-		--[[
-			i was so happy when i made this work
-			yippieeeeeeeeeeeeeeeeee
-			-sidecode
-		]]
 		lexerState = lexerStates.readStringTwoQuotes
 		returnToState = lexerStates.readStringTwoQuotes
 		return readStringQuote(tokPos)
