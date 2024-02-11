@@ -285,10 +285,10 @@ local function stringEscapeRead(tokPos:Position)
 		curposreal += 1
 		curpos += 1
 	else
-		error("A STRING ESCAPE ERROR OCCURED! PLEASE, SEND THIS TO THE DEVELOPER!")
+		error("A STRING ESCAPE ERROR OCCURED! PLEASE SEND THIS TO THE DEVELOPER!")
 	end
 
-	if buf[curposreal] == "r" or buf[curposreal] == "n" or buf[curposreal] == "t" 
+	if buf[curposreal] == "r" or buf[curposreal] == "n" or buf[curposreal] == "t"
 	or buf[curposreal] == "\"" or buf[curposreal] == "'" or buf[curposreal] == "\\" then
 		tokContent ..= buf[curposreal]
 		curposreal += 1
@@ -678,6 +678,7 @@ function Lexer:nextToken()
 		else
 			return {type = Lexer.tokT.int, value = someth, position = tokPos}
 		end
+	--TODO: make all of these into 1 function
 	elseif buf[curposreal] == ";" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
@@ -687,7 +688,7 @@ function Lexer:nextToken()
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		proceed()
-		return {type = Lexer.tokT.semicolon, value = ":", position = tokPos}
+		return {type = Lexer.tokT.colon, value = ":", position = tokPos}
 	elseif buf[curposreal] == "." then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
