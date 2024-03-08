@@ -11,3 +11,5 @@ Main modules completion:
 - Parser: ?%
 - Bytecode Generator: not started
 - VM: not started
+
+Currently considering to change the syntax and other stuff a little bit due to concerns related to implementation complexity, performance, and other things.
