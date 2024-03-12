@@ -19,7 +19,7 @@ Currently considering to change the syntax and other stuff a little bit due to c
 
 ## How to include in your rojo project (WIP)
 
-1. get [Rojo](rojo.space)
-2. get [Wally](wally.run)
+1. get [Rojo](https://rojo.space)
+2. get [Wally](https://wally.run)
 3. run "wally install *package-name*"
 4. done.
