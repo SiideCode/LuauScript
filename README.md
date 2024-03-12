@@ -8,8 +8,8 @@ It is currently planned for it to be able to be precompiled (into bytecode, just
 
 ## Progress
 
-- Lexer: ?%
-- Parser: ?%
+- Lexer: 80-ish%
+- Parser: <1%
 - Bytecode Generator: not started
 - VM: not started
 
