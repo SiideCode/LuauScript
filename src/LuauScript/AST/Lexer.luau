@@ -125,68 +125,53 @@ local tokProt =
 	"hashtag",							-- 75: i forgot why it exists.
 	"dollar",							-- 76: dollar for something
 	--keywords
-	--TODO: maybe use "pkg" instead? or "pack"? example:
-	--[[
-		pkg std.io;
-
-		extern class Bytes
-		{
-			// macros are compile-time.
-			#if macro
-			func new(len:Int, data:NativeBytesArray) {}
-			#end
-
-			func alloc(len:Int):Bytes {}
-
-			...
-		}
-	]]
-	"kvPackage",						-- 77: module path declaration keyword
-	"kvImport",							-- 78: module import keyword
-	"kvUsing",							-- 79: using (https://haxe.org/manual/lf-static-extension.html)
-	"kvClass",							-- 80: class declaration keyword
-	"kvInterface",						-- 81: interface keyword
-	"kvEnum",							-- 82: enum keyword
-	"kvAbstract",						-- 83: abstract type/class/enum modifier keyword (https://haxe.org/manual/ts-abstract.html) (https://haxe.org/manual/ts-abstract-class.html)
-	"kvType",							-- 84: type declaration keyword (works like haxe's typedef, so structs are also constructed with it. makes the language a tiny bit more luau-like)
-	"kvExtends",						-- 85: class extension keyword
-	"kvImplements",						-- 86: interface implementation keyword
-	"kvExtern",							-- 87: extern keyword (https://haxe.org/manual/lf-externs.html)
-	"kvGlobal",							-- 88: global modifier
-	"kvLocal",							-- 89: local modifier
-	"kvOverride",						-- 90: override modifier, overloads the function
-	"kvDynamic",						-- 91: dynamic access to a variable i guess
-	"kvInline",							-- 92: inline keyword
-	"kvMacro",							-- 93: macro class/func/var/whatever modifier.
-	"kvConst",							-- 94: constant (might get unused, cause it can only be emulated)
-	"kvOperator",						-- 95: operator function modifier keyword
-	"kvOverload",						-- 96: overloading keyword
-	"kvFunc",							-- 97: function keyword
-	"kvVar",							-- 98: variable keyword
-	"kvNull",							-- 99: null
-	"kvTrue",							-- 100: true
-	"kvFalse",							-- 101: false
-	"kvThis",							-- 102: basically like self in lua
-	"kvIf",								-- 103: if
-	"kvElse",							-- 104: else
-	"kvWhile",							-- 105: while
-	"kvDo",								-- 106: do
-	"kvFor",							-- 107: for
-	"kvBreak",							-- 108: break
-	"kvContinue",						-- 109: continue
-	"kvReturn",							-- 110: return
-	"kvSwitch",							-- 111: switch
-	"kvCase",							-- 112: case
-	"kvDefault",						-- 113: default course of action for switch case/variable access modifier AND default access modifier for variables (no getter/setter)
-	"kvThrow",							-- 114: throw an error
-	"kvTry",							-- 115: try
-	"kvCatch",							-- 116: catch
-	"kvUntyped",						-- 117: suppress typechecker for the line entirely
-	"kvNew",							-- 118: new() constructor
-	"kvIn",								-- 119: in for the for-loop
+	"kvPackage",						-- module path declaration keyword
+	"kvImport",							-- module import keyword
+	"kvUsing",							-- using (https://haxe.org/manual/lf-static-extension.html)
+	"kvClass",							-- class declaration keyword
+	"kvInterface",						-- interface keyword
+	"kvEnum",							-- enum keyword
+	"kvAbstract",						-- abstract type/class/enum modifier keyword (https://haxe.org/manual/ts-abstract.html) (https://haxe.org/manual/ts-abstract-class.html)
+	"kvType",							-- type declaration keyword, only useful for type alias declarations (works like haxe's typedef, but you can't declare structs like this)
+	"kvStruct",							-- struct declaration keyword. it's only there cause i LOVE the struct keyword for some reason. type and struct separation is rust-like at it's core now, and i love it
+	"kvExtends",						-- class extension keyword
+	"kvImplements",						-- interface implementation keyword
+	"kvExtern",							-- extern keyword (https://haxe.org/manual/lf-externs.html)
+	"kvGlobal",							-- global modifier
+	"kvLocal",							-- local modifier
+	"kvOverride",						-- override modifier, overloads the function
+	"kvDynamic",						-- dynamic access to a variable i guess
+	"kvInline",							-- inline keyword
+	"kvMacro",							-- macro class/func/var/whatever modifier.
+	"kvConst",							-- constant (might get unused, cause it can only be emulated)
+	"kvOperator",						-- operator function modifier keyword
+	"kvOverload",						-- overloading keyword
+	"kvFunc",							-- function keyword
+	"kvVar",							-- variable keyword
+	"kvNull",							-- null
+	"kvTrue",							-- true
+	"kvFalse",							-- false
+	"kvThis",							-- basically like self in lua
+	"kvIf",								-- if
+	"kvElse",							-- else
+	"kvWhile",							-- while
+	"kvDo",								-- do
+	"kvFor",							-- for
+	"kvBreak",							-- break
+	"kvContinue",						-- continue
+	"kvReturn",							-- return
+	"kvSwitch",							-- switch
+	"kvCase",							-- case
+	"kvDefault",						-- default course of action for switch case/variable access modifier AND default access modifier for variables (no getter/setter)
+	"kvThrow",							-- throw an error
+	"kvTry",							-- try
+	"kvCatch",							-- catch
+	"kvUntyped",						-- suppress typechecker for the line entirely
+	"kvNew",							-- new() constructor
+	"kvIn",								-- in for the for-loop
 	--TODO: decide on how to do casts (possibly allow C-style unsafe casts, or C++-style cast functions?)
-	"kvCast",							-- 120: cast. read https://haxe.org/manual/expression-cast-unsafe.html and https://haxe.org/manual/expression-cast-safe.html
-	"ident",							-- 121: packages and variables.
+	"kvCast",							-- cast. read https://haxe.org/manual/expression-cast-unsafe.html and https://haxe.org/manual/expression-cast-safe.html
+	"ident",							-- packages and variables.
 	"identT",							-- 122: classes and types
 	"identMacro"						-- 123: rust-like macro_funcion! identity
 }
@@ -204,7 +189,7 @@ tokProt = nil
 
 Lexer.tokT = TableUtil.DictUtil.mirrorDictionary(Lexer.tokTMirror)
 
---List of reserved keywords
+--List of reserved keywords. TODO: consider keyword alias support, will be useful to not instantly introduce breaking changes if i change my mind about keywords during non-stable development phase.
 local resKeywords =
 {
 	"package",
