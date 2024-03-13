@@ -45,85 +45,85 @@ Lexer.tokTMirror = {}
 --TODO: make this list more maintainable (make a function that accepts and array, and maps numbers in range x...y to everything)
 local tokProt =
 {
-	"unknown",							-- 0: unknown symbol
-	"eof",								-- 1: EOF
-	"tab",								-- 2: tabulation
-	"newlineReturn",					-- 3: carriage return and new line
-	"newline",							-- 4: new line or carriage return
-	"hex",								-- 5: hexadecimal number
-	"int",								-- 6: integer
-	"float",							-- 7: floating point
-	"pFloat",							-- 8: floating point no whole part
-	"peFloat",							-- 9: floating point exponent no whole part
-	"eFloat",							-- 10: floating point exponent
-	"intInt",							-- 11: integer interval
-	"comment",							-- 12: one line comment
-	"unaryPlus",						-- 13: unary +1
-	"unaryMinus",						-- 14: unary -1
-	"bitNot",							-- 15: bitwise not (every 1 = 0, every 0 = 1).
-	"modAssign",						-- 16: module + assign
-	"bitAndAssign",						-- 17: bitwise AND + assign
-	"bitOrAssign",						-- 18: bitwise OR + assign
-	"bitXorAssign",						-- 19: bitwise XOR + assign
-	"addAssign",						-- 20: add + assign
-	"subAssign",						-- 21: substract + assign
-	"multAssign",						-- 22: multiply + assign
-	"divAssign",						-- 23: divide + assign
-	"bitShiftLAssign",					-- 24: bit shift left + assign
-	"bitShiftRAssign",					-- 25: bit shift right + assign
-	"uBitShiftRAssign",					-- 26: unsigned bit shift left
-	"orAssign",							-- 27: or + assign
-	"andAssign",						-- 28: and + assign
-	"nullCoalAssign",					-- 29: null coalescing + assign (https://www.tutorialspoint.com/What-is-a-null-coalescing-operator-in-JavaScript)
-	"compare",							-- 30: compare
-	"notEqual",							-- 31: not equals
-	"lessOrEqual",						-- 32: less/equals
-	"moreOrEqual",						-- 33: more/equals
-	"andOp",							-- 34: and
-	"orOp",								-- 35: or
-	"bitShiftL",						-- 36: bit shift left
-	"bitShiftR",						-- 37: bit shift right
-	"uBitShiftR",						-- 38: unsigned bit shift right
-	"arrowF",							-- 39: arrow (https://haxe.org/manual/expression-arrow-function.html) (https://haxe.org/manual/lf-function-bindings.html)
-	"interval",							-- 40: interval from...to
-	"arrowM",							-- 41: arrow (for map and array loops with indexes)
-	"notOp",							-- 42: not
-	"lessOp",							-- 43: less
-	"moreOp",							-- 44: more
-	"semicolon",						-- 45: semicolon
-	"colon",							-- 46: colon
-	"comma",							-- 47: comma
-	"dot",								-- 48: dot
-	"qmarkDot",							-- 49: question mark + dot (https://bobbyhadz.com/blog/tscript-question-mark-dot)
-	"mod",								-- 50: module
-	"bitAnd",							-- 51: bitwise and
-	"bitOr",							-- 52: bitwise or
-	"bitXor",							-- 53: bitwise XOR
-	"addOp",							-- 54: add
-	"multOp",							-- 55: multiply
-	"divOp",							-- 56: divide
-	"subOp",							-- 57: substract
-	"assignOp",							-- 58: assign
-	"sqBrakOpen",						-- 59: open square brackets
-	"sqBrakClose",						-- 60: close square brackets
-	"cuBrakOpen",						-- 61: open curly brackets
-	"cuBrakClose",						-- 62: close curly brackets
-	"brakOpen",							-- 63: open brackets
-	"brakClose",						-- 64: close brackets
-	"nullCoal",							-- 65: null coalescing (https://www.tutorialspoint.com/What-is-a-null-coalescing-operator-in-JavaScript)
-	"questionOp",						-- 66: question mark
-	"atMacro",							-- 67: at (macros)
-	"multiCom",							-- 68: begin multiline comment
-	"str",								-- 69: start/begin string ("")
-	"fStr",								-- 70: start/begin formatted string ('')
-	"strLetters",						-- 71: string letters
-	"strEscape",						-- 72: escapes in strings
-	"fStrDollarContent",				-- 73: everything after $, between ${ and }. $$ just adds a $ to fStr.
+	"unknown",							-- unknown symbol
+	"eof",								-- EOF
+	"tab",								-- tabulation
+	"newlineReturn",					-- carriage return and new line
+	"newline",							-- new line or carriage return
+	"hex",								-- hexadecimal number
+	"int",								-- integer
+	"float",							-- floating point
+	"pFloat",							-- floating point no whole part
+	"peFloat",							-- floating point exponent no whole part
+	"eFloat",							-- floating point exponent
+	"intInt",							-- integer interval
+	"comment",							-- one line comment
+	"unaryPlus",						-- unary +1
+	"unaryMinus",						-- unary -1
+	"bitNot",							-- bitwise not (every 1 = 0, every 0 = 1).
+	"modAssign",						-- module + assign
+	"bitAndAssign",						-- bitwise AND + assign
+	"bitOrAssign",						-- bitwise OR + assign
+	"bitXorAssign",						-- bitwise XOR + assign
+	"addAssign",						-- add + assign
+	"subAssign",						-- substract + assign
+	"multAssign",						-- multiply + assign
+	"divAssign",						-- divide + assign
+	"bitShiftLAssign",					-- bit shift left + assign
+	"bitShiftRAssign",					-- bit shift right + assign
+	"uBitShiftRAssign",					-- unsigned bit shift left
+	"orAssign",							-- or + assign
+	"andAssign",						-- and + assign
+	"nullCoalAssign",					-- null coalescing + assign (https://www.tutorialspoint.com/What-is-a-null-coalescing-operator-in-JavaScript)
+	"compare",							-- compare
+	"notEqual",							-- not equals
+	"lessOrEqual",						-- less/equals
+	"moreOrEqual",						-- more/equals
+	"andOp",							-- and
+	"orOp",								-- or
+	"bitShiftL",						-- bit shift left
+	"bitShiftR",						-- bit shift right
+	"uBitShiftR",						-- unsigned bit shift right
+	"arrowF",							-- arrow (https://haxe.org/manual/expression-arrow-function.html) (https://haxe.org/manual/lf-function-bindings.html)
+	"interval",							-- interval from...to
+	"arrowM",							-- arrow (for map and array loops with indexes)
+	"notOp",							-- not
+	"lessOp",							-- less
+	"moreOp",							-- more
+	"semicolon",						-- semicolon
+	"colon",							-- colon
+	"comma",							-- comma
+	"dot",								-- dot
+	"qmarkDot",							-- question mark + dot (https://bobbyhadz.com/blog/tscript-question-mark-dot)
+	"mod",								-- module
+	"bitAnd",							-- bitwise and
+	"bitOr",							-- bitwise or
+	"bitXor",							-- bitwise XOR
+	"addOp",							-- add
+	"multOp",							-- multiply
+	"divOp",							-- divide
+	"subOp",							-- substract
+	"assignOp",							-- assign
+	"sqBrakOpen",						-- open square brackets
+	"sqBrakClose",						-- close square brackets
+	"cuBrakOpen",						-- open curly brackets
+	"cuBrakClose",						-- close curly brackets
+	"brakOpen",							-- open brackets
+	"brakClose",						-- close brackets
+	"nullCoal",							-- null coalescing (https://www.tutorialspoint.com/What-is-a-null-coalescing-operator-in-JavaScript)
+	"questionOp",						-- question mark
+	"atMacro",							-- at (macros)
+	"multiCom",							-- begin multiline comment
+	"str",								-- start/begin string ("")
+	"fStr",								-- start/begin formatted string ('')
+	"strLetters",						-- string letters
+	"strEscape",						-- escapes in strings
+	"fStrDollarContent",				-- everything after $, between ${ and }. $$ just adds a $ to fStr.
 	--(haxe regexp rules: https://haxe.org/manual/std-regex.html)
-	"regexp",							-- 74: start/end of the regexp (https://haxe.org/manual/std-regex.html)
+	"regexp",							-- start/end of the regexp (https://haxe.org/manual/std-regex.html)
 	--TODO: make it work lol, i forgot it exists
-	"hashtag",							-- 75: i forgot why it exists.
-	"dollar",							-- 76: dollar for something
+	"hashtag",							-- i forgot why it exists.
+	"dollar",							-- dollar for something
 	--keywords
 	"kvPackage",						-- module path declaration keyword
 	"kvImport",							-- module import keyword
