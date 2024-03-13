@@ -14,7 +14,7 @@ type Position = {
 }
 
 type Token = {
-	type:number,
+	t:number,
 	value:string?,
 	position:Position
 }
@@ -25,156 +25,184 @@ type LexerError = {
 	fileRef:string?
 }
 
---current position in string
+--current position in file
 local curposreal = 1
 --current position in line
 local curpos = 1
 --current line
 local curline = 1
---a list of symbols
+--list of characters
 local buf = {}
 --name of the file
 local fileref = ""
 --current state of the lexer
 local lexerState = 1
---a variable that contains the state that should be next after the current state
+--state that should be next after the current state
 local returnToState = 1
+local tokPos = {startPos = 0, line = 0, endPos = 0}
 
-Lexer.tokT =
+Lexer.tokTMirror = {}
+--TODO: make this list more maintainable (make a function that accepts and array, and maps numbers in range x...y to everything)
+local tokProt =
 {
-	unknown = 0,						-- 0: unknown symbol
-	eof = 1,							-- 1: EOF
-	tab = 2,							-- 2: tabulation
-	newlineReturn = 3,					-- 3: carriage return and new line
-	newline = 4,						-- 4: new line or carriage return
-	hex = 5,							-- 5: hexadecimal number
-	int = 6,							-- 6: integer
-	float = 7,							-- 7: floating point
-	pFloat = 8,							-- 8: floating point no whole part
-	peFloat = 9,						-- 9: floating point exponent no whole part
-	eFloat = 10,						-- 10: floating point exponent
-	--TODO: understand why the hell it exists in haxe
-	intInt = 11,						-- 11: integer interval
-	comment = 12,						-- 12: one line comment
-	unaryPlus = 13,						-- 13: unary +1
-	unaryMinus = 14,					-- 14: unary -1
-	bitNot = 15,						-- 15: bitwise not (every 1 = 0, every 0 = 1).
-	modAssign = 16,						-- 16: module + assign
-	bitAndAssign = 17,					-- 17: bitwise AND + assign
-	bitOrAssign = 18,					-- 18: bitwise OR + assign
-	bitXorAssign = 19,					-- 19: bitwise XOR + assign
-	addAssign = 20,						-- 20: add + assign
-	subAssign = 21,						-- 21: substract + assign
-	multAssign = 22,					-- 22: multiply + assign
-	divAssign = 23,						-- 23: divide + assign
-	bitShiftLAssign = 24,				-- 24: bit shift left + assign
-	bitShiftRAssign = 25,				-- 25: bit shift right + assign
-	uBitShiftRAssign = 26,				-- 26: unsigned bit shift left
-	orAssign = 27,						-- 27: or + assign
-	andAssign = 28,						-- 28: and + assign
-	nullCoalAssign = 29,				-- 29: null coalescing + assign (https://www.tutorialspoint.com/What-is-a-null-coalescing-operator-in-JavaScript)
-	compare = 30,						-- 30: compare
-	notEqual = 31,						-- 31: not equals
-	lessOrEqual = 32,					-- 32: less/equals
-	moreOrEqual = 33,					-- 33: more/equals
-	andOp = 34,							-- 34: and
-	orOp = 35,							-- 35: or
-	bitShiftL = 36,						-- 36: bit shift left
-	bitShiftR = 37,						-- 37: bit shift right
-	uBitShiftR = 38,					-- 38: unsigned bit shift right
-	arrowF = 39,						-- 39: arrow (https://haxe.org/manual/expression-arrow-function.html) (https://haxe.org/manual/lf-function-bindings.html)
-	interval = 40,						-- 40: interval from...to
-	arrowM = 41,						-- 41: arrow (for map and array loops with indexes)
-	notOp = 42,							-- 42: not
-	lessOp = 43,						-- 43: less
-	moreOp = 44,						-- 44: more
-	semicolon = 45,						-- 45: semicolon
-	colon = 46,							-- 46: colon
-	comma = 47,							-- 47: comma
-	dot = 48,							-- 48: dot
-	qmarkDot = 49,						-- 49: question mark + dot (https://bobbyhadz.com/blog/typescript-question-mark-dot)
-	mod = 50,							-- 50: module
-	bitAnd = 51,						-- 51: bitwise and
-	bitOr = 52,							-- 52: bitwise or
-	bitXor = 53,						-- 53: bitwise XOR
-	addOp = 54,							-- 54: add
-	multOp = 55,						-- 55: multiply
-	divOp = 56,							-- 56: divide
-	subOp = 57,							-- 57: substract
-	assignOp = 58,						-- 58: assign
-	sqBrakOpen = 59,					-- 59: open square brackets
-	sqBrakClose = 60,					-- 60: close square brackets
-	cuBrakOpen = 61,					-- 61: open curly brackets
-	cuBrakClose = 62,					-- 62: close curly brackets
-	brakOpen = 63,						-- 63: open brackets
-	brakClose = 64,						-- 64: close brackets
-	nullCoal = 65,						-- 65: null coalescing (https://www.tutorialspoint.com/What-is-a-null-coalescing-operator-in-JavaScript)
-	questionOp = 66,					-- 66: question mark
-	atMacro = 67,						-- 67: at (macros)
-	multiCom = 68,						-- 68: begin multiline comment
-	str = 69,							-- 69: start/begin string ("")
-	fStr = 70,							-- 70: start/begin formatted string ('')
-	strLetters = 71,					-- 71: string letters
-	strEscape = 72,						-- 72: escapes in strings
-	fStrDollarContent = 73,				-- 73: everything after $, between ${ and }. $$ just adds a $ to fStr.
+	"unknown",							-- 0: unknown symbol
+	"eof",								-- 1: EOF
+	"tab",								-- 2: tabulation
+	"newlineReturn",					-- 3: carriage return and new line
+	"newline",							-- 4: new line or carriage return
+	"hex",								-- 5: hexadecimal number
+	"int",								-- 6: integer
+	"float",							-- 7: floating point
+	"pFloat",							-- 8: floating point no whole part
+	"peFloat",							-- 9: floating point exponent no whole part
+	"eFloat",							-- 10: floating point exponent
+	"intInt",							-- 11: integer interval
+	"comment",							-- 12: one line comment
+	"unaryPlus",						-- 13: unary +1
+	"unaryMinus",						-- 14: unary -1
+	"bitNot",							-- 15: bitwise not (every 1 = 0, every 0 = 1).
+	"modAssign",						-- 16: module + assign
+	"bitAndAssign",						-- 17: bitwise AND + assign
+	"bitOrAssign",						-- 18: bitwise OR + assign
+	"bitXorAssign",						-- 19: bitwise XOR + assign
+	"addAssign",						-- 20: add + assign
+	"subAssign",						-- 21: substract + assign
+	"multAssign",						-- 22: multiply + assign
+	"divAssign",						-- 23: divide + assign
+	"bitShiftLAssign",					-- 24: bit shift left + assign
+	"bitShiftRAssign",					-- 25: bit shift right + assign
+	"uBitShiftRAssign",					-- 26: unsigned bit shift left
+	"orAssign",							-- 27: or + assign
+	"andAssign",						-- 28: and + assign
+	"nullCoalAssign",					-- 29: null coalescing + assign (https://www.tutorialspoint.com/What-is-a-null-coalescing-operator-in-JavaScript)
+	"compare",							-- 30: compare
+	"notEqual",							-- 31: not equals
+	"lessOrEqual",						-- 32: less/equals
+	"moreOrEqual",						-- 33: more/equals
+	"andOp",							-- 34: and
+	"orOp",								-- 35: or
+	"bitShiftL",						-- 36: bit shift left
+	"bitShiftR",						-- 37: bit shift right
+	"uBitShiftR",						-- 38: unsigned bit shift right
+	"arrowF",							-- 39: arrow (https://haxe.org/manual/expression-arrow-function.html) (https://haxe.org/manual/lf-function-bindings.html)
+	"interval",							-- 40: interval from...to
+	"arrowM",							-- 41: arrow (for map and array loops with indexes)
+	"notOp",							-- 42: not
+	"lessOp",							-- 43: less
+	"moreOp",							-- 44: more
+	"semicolon",						-- 45: semicolon
+	"colon",							-- 46: colon
+	"comma",							-- 47: comma
+	"dot",								-- 48: dot
+	"qmarkDot",							-- 49: question mark + dot (https://bobbyhadz.com/blog/tscript-question-mark-dot)
+	"mod",								-- 50: module
+	"bitAnd",							-- 51: bitwise and
+	"bitOr",							-- 52: bitwise or
+	"bitXor",							-- 53: bitwise XOR
+	"addOp",							-- 54: add
+	"multOp",							-- 55: multiply
+	"divOp",							-- 56: divide
+	"subOp",							-- 57: substract
+	"assignOp",							-- 58: assign
+	"sqBrakOpen",						-- 59: open square brackets
+	"sqBrakClose",						-- 60: close square brackets
+	"cuBrakOpen",						-- 61: open curly brackets
+	"cuBrakClose",						-- 62: close curly brackets
+	"brakOpen",							-- 63: open brackets
+	"brakClose",						-- 64: close brackets
+	"nullCoal",							-- 65: null coalescing (https://www.tutorialspoint.com/What-is-a-null-coalescing-operator-in-JavaScript)
+	"questionOp",						-- 66: question mark
+	"atMacro",							-- 67: at (macros)
+	"multiCom",							-- 68: begin multiline comment
+	"str",								-- 69: start/begin string ("")
+	"fStr",								-- 70: start/begin formatted string ('')
+	"strLetters",						-- 71: string letters
+	"strEscape",						-- 72: escapes in strings
+	"fStrDollarContent",				-- 73: everything after $, between ${ and }. $$ just adds a $ to fStr.
 	--(haxe regexp rules: https://haxe.org/manual/std-regex.html)
-	regexp = 74,						-- 74: start/end of the regexp (https://haxe.org/manual/std-regex.html)
-	sharp = 75,							-- 75: i forgot why it exists.
-	dollar = 76,						-- 76: dollar for something
+	"regexp",							-- 74: start/end of the regexp (https://haxe.org/manual/std-regex.html)
+	--TODO: make it work lol, i forgot it exists
+	"hashtag",							-- 75: i forgot why it exists.
+	"dollar",							-- 76: dollar for something
 	--keywords
-	kvPackage = 77,						-- 77: module path declaration keyword
-	kvImport = 78,						-- 78: module import keyword
-	kvUsing = 79,						-- 79: using (https://haxe.org/manual/lf-static-extension.html)
-	kvClass = 80,						-- 80: class declaration keyword
-	kvInterface = 81,					-- 81: interface keyword
-	kvEnum = 82,						-- 82: enum keyword
-	kvAbstract = 83,					-- 83: abstract type/class/enum modifier keyword (https://haxe.org/manual/types-abstract.html) (https://haxe.org/manual/types-abstract-class.html)
-	kvTypedef = 84,						-- 84: type/struct declaration keyword
-	kvExtends = 85,						-- 85: class extension keyword
-	kvImplements = 86,					-- 86: interface implementation keyword
-	--TODO: decide if it's needed later
-	--kvExtern = 87,					-- 87: extern keyword (https://haxe.org/manual/lf-externs.html)
-	kvStatic = 87,						-- 87: static modifier (doesn't exist in lua)
-	kvGlobal = 88,						-- 88: global modifier, potentially incompatible with static and public keywords
-	kvPublic = 89,						-- 89: public modifier
-	kvPrivate = 90,						-- 90: private modifier
-	kvOverride = 91,					-- 91: override modifiers, overloads the function
-	kvDynamic = 92,						-- 92: dynamic access to a variable i guess
-	kvInline = 93,						-- 93: inline keyword
-	--TODO: actually uncomment this when i'm not lazy
-	--kvMacro = 94,						-- 94: haxe macro modifier.
-	kvFinal = 94,						-- 94: constant (might get unused, cause it can only be emulated)
-	kvOperator = 95,					-- 95: operator function modifier keyword
-	kvOverload = 96,					-- 96: overloading keyword
-	kvFunction = 97,					-- 97: function keyword
-	kvVar = 98,							-- 98: variable keyword
-	kvNull = 99,						-- 99: null
-	kvTrue = 100,						-- 100: true
-	kvFalse = 101,						-- 101: false
-	kvThis = 102,						-- 102: basically self in lua
-	kvIf = 103,							-- 103: if
-	kvElse = 104,						-- 104: else
-	kvWhile = 105,						-- 105: while
-	kvDo = 106,							-- 106: do (i forgot why it's here)
-	kvFor = 107,						-- 107: for (for-cycle lol)
-	kvBreak = 108,						-- 108: break
-	kvContinue = 109,					-- 109: continue
-	kvReturn = 110,						-- 110: return
-	kvSwitch = 111,						-- 111: switch
-	kvCase = 112,						-- 112: case
-	kvDefault = 113,					-- 113: default cours of action for switch case/variable access modifier
-	kvThrow = 114,						-- 114: throw an error
-	kvTry = 115,						-- 115: try
-	kvCatch = 116,						-- 116: catch
-	kvUntyped = 117,					-- 117: suppress typechecker for the line
-	kvNew = 118,						-- 118: new() constructor
-	kvIn = 119,							-- 119: in
-	kvCast = 120,						-- 120: read https://haxe.org/manual/expression-cast-unsafe.html and https://haxe.org/manual/expression-cast-safe.html
-	ident = 121,						-- 121: packages and variables.
-	identT = 122						-- 122: classes and types
+	--TODO: maybe use "pkg" instead? or "pack"? example:
+	--[[
+		pkg std.io;
+
+		extern class Bytes
+		{
+			// macros are compile-time.
+			#if macro
+			func new(len:Int, data:NativeBytesArray) {}
+			#end
+
+			func alloc(len:Int):Bytes {}
+
+			...
+		}
+	]]
+	"kvPackage",						-- 77: module path declaration keyword
+	"kvImport",							-- 78: module import keyword
+	"kvUsing",							-- 79: using (https://haxe.org/manual/lf-static-extension.html)
+	"kvClass",							-- 80: class declaration keyword
+	"kvInterface",						-- 81: interface keyword
+	"kvEnum",							-- 82: enum keyword
+	"kvAbstract",						-- 83: abstract type/class/enum modifier keyword (https://haxe.org/manual/ts-abstract.html) (https://haxe.org/manual/ts-abstract-class.html)
+	"kvType",							-- 84: type declaration keyword (works like haxe's typedef, so structs are also constructed with it. makes the language a tiny bit more luau-like)
+	"kvExtends",						-- 85: class extension keyword
+	"kvImplements",						-- 86: interface implementation keyword
+	"kvExtern",							-- 87: extern keyword (https://haxe.org/manual/lf-externs.html)
+	"kvGlobal",							-- 88: global modifier
+	"kvLocal",							-- 89: local modifier
+	"kvOverride",						-- 90: override modifier, overloads the function
+	"kvDynamic",						-- 91: dynamic access to a variable i guess
+	"kvInline",							-- 92: inline keyword
+	"kvMacro",							-- 93: macro class/func/var/whatever modifier.
+	"kvConst",							-- 94: constant (might get unused, cause it can only be emulated)
+	"kvOperator",						-- 95: operator function modifier keyword
+	"kvOverload",						-- 96: overloading keyword
+	"kvFunc",							-- 97: function keyword
+	"kvVar",							-- 98: variable keyword
+	"kvNull",							-- 99: null
+	"kvTrue",							-- 100: true
+	"kvFalse",							-- 101: false
+	"kvThis",							-- 102: basically like self in lua
+	"kvIf",								-- 103: if
+	"kvElse",							-- 104: else
+	"kvWhile",							-- 105: while
+	"kvDo",								-- 106: do
+	"kvFor",							-- 107: for
+	"kvBreak",							-- 108: break
+	"kvContinue",						-- 109: continue
+	"kvReturn",							-- 110: return
+	"kvSwitch",							-- 111: switch
+	"kvCase",							-- 112: case
+	"kvDefault",						-- 113: default course of action for switch case/variable access modifier AND default access modifier for variables (no getter/setter)
+	"kvThrow",							-- 114: throw an error
+	"kvTry",							-- 115: try
+	"kvCatch",							-- 116: catch
+	"kvUntyped",						-- 117: suppress typechecker for the line entirely
+	"kvNew",							-- 118: new() constructor
+	"kvIn",								-- 119: in for the for-loop
+	--TODO: decide on how to do casts (possibly allow C-style unsafe casts, or C++-style cast functions?)
+	"kvCast",							-- 120: cast. read https://haxe.org/manual/expression-cast-unsafe.html and https://haxe.org/manual/expression-cast-safe.html
+	"ident",							-- 121: packages and variables.
+	"identT",							-- 122: classes and types
+	"identMacro"						-- 123: rust-like macro_funcion! identity
 }
 
-Lexer.tokTMirror = TableUtil.DictUtil.mirrorDictionary(Lexer.tokT)
+local fakei = 0
+
+for i = 1, #tokProt, 1 do
+	table.insert(Lexer.tokTMirror, fakei, tokProt[i]);
+	fakei += 1
+end
+
+--be sure to dispose of temps to reduce resource usage slightly :)
+fakei = nil
+tokProt = nil
+
+Lexer.tokT = TableUtil.DictUtil.mirrorDictionary(Lexer.tokTMirror)
 
 --List of reserved keywords
 local resKeywords =
@@ -186,21 +214,19 @@ local resKeywords =
 	"interface",
 	"enum",
 	"abstract",
-	"typedef",
+	"type",
 	"extends",
 	"implements",
-	"static",
 	"global",
-	"public",
-	"private",
+	"local",
 	"override",
 	"dynamic",
 	"inline",
 	"macro",
-	"final",
+	"const",
 	"operator",
 	"overload",
-	"function",
+	"func",
 	"var",
 	"null",
 	"true",
@@ -234,22 +260,31 @@ local lexerStates =
 	readStringTwoQuotes = 2,
 	--like a readStringTwoQuotes, but with $ and ${} interpolation support. btw $$ is an escape for an actual dollar lol
 	readStringOneQuote = 3,
-	--reads a regular expression, returning it's different parts as different tokens
-	readRegexp = 4,
 	--reads a single line comment, includes markdown and other stuff to support docs
-	readComment = 5,
+	readComment = 4,
 	--reads a multiline comment, includes markdown and other stuff to support docs
-	readMultiComment = 6,
+	readMultiComment = 5,
 	--just returns a newline if there's one, and that's it
-	returnNewlineTok = 7,
+	returnNewlineTok = 6,
 	--reads and returns a string escape
-	readStringEscape = 8,
+	readStringEscape = 7,
 	--reads and returns a quote of a string
-	readStringQuote = 9,
-	readFStringDollar = 10
+	readStringQuote = 8,
+	readFStringDollar = 9
 }
 
-local function readStringQuote(tokPos:Position)
+local function proceed(amount:number?)
+	if amount and amount ~= 1 then
+		tokPos.endPos += (amount - 1)
+		curposreal += amount
+		curpos += amount
+	else
+		curposreal += 1
+		curpos += 1
+	end
+end
+
+local function readStringQuote()
 	lexerState = returnToState
 	print("state:", lexerState, "state to return:", returnToState)
 
@@ -267,13 +302,13 @@ local function readStringQuote(tokPos:Position)
 	curposreal += 1
 
 	if crol == "'" then
-		return {type = Lexer.tokT.fStr, value = crol, position = tokPos}
+		return {t = Lexer.tokT.fStr, value = crol, position = tokPos}
 	end
-	return {type = Lexer.tokT.str, value = crol, position = tokPos}
+	return {t = Lexer.tokT.str, value = crol, position = tokPos}
 end
 
 --TODO: revamp this someday, i don't like it.
-local function stringEscapeRead(tokPos:Position)
+local function stringEscapeRead()
 	lexerState = returnToState
 	local tokContent = ""
 
@@ -331,7 +366,7 @@ local function stringEscapeRead(tokPos:Position)
 			curpos += poo
 			tokPos.endPos += poo - 1
 		else
-			error({msg = "Invalid string escape.", lastToken = {type = Lexer.tokT.strEscape, value = tokContent, position = tokPos}, fileRef = fileref}, 1)
+			error({msg = "Invalid string escape.", lastToken = {t = Lexer.tokT.strEscape, value = tokContent, position = tokPos}, fileRef = fileref}, 1)
 		end
 	elseif buf[curposreal] == "u" and buf[curposreal+1] ~= "{" then
 		tokContent ..= buf[curposreal]
@@ -352,7 +387,7 @@ local function stringEscapeRead(tokPos:Position)
 			curpos += poo
 			tokPos.endPos += poo - 1
 		else
-			error({msg = "Invalid string escape.", lastToken = {type = Lexer.tokT.strEscape, value = tokContent, position = tokPos}, fileRef = fileref}, 1)
+			error({msg = "Invalid string escape.", lastToken = {t = Lexer.tokT.strEscape, value = tokContent, position = tokPos}, fileRef = fileref}, 1)
 		end
 	elseif buf[curposreal] == "u" and buf[curposreal+1] == "{" then
 		tokContent ..= buf[curposreal] .. buf[curposreal+1]
@@ -380,21 +415,21 @@ local function stringEscapeRead(tokPos:Position)
 				curposreal += poo
 				curpos += poo
 				tokPos.endPos += poo - 1
-				error({msg = "Invalid string escape.", lastToken = {type = Lexer.tokT.strEscape, value = tokContent, position = tokPos}, fileRef = fileref}, 1)
+				error({msg = "Invalid string escape.", lastToken = {t = Lexer.tokT.strEscape, value = tokContent, position = tokPos}, fileRef = fileref}, 1)
 			end
 		else
-			error({msg = "Invalid string escape.", lastToken = {type = Lexer.tokT.strEscape, value = tokContent, position = tokPos}, fileRef = fileref}, 1)
+			error({msg = "Invalid string escape.", lastToken = {t = Lexer.tokT.strEscape, value = tokContent, position = tokPos}, fileRef = fileref}, 1)
 		end
 	else
-		error({msg = "Invalid string escape.", lastToken = {type = Lexer.tokT.strEscape, value = tokContent, position = tokPos}, fileRef = fileref}, 1)
+		error({msg = "Invalid string escape.", lastToken = {t = Lexer.tokT.strEscape, value = tokContent, position = tokPos}, fileRef = fileref}, 1)
 	end
 
 	print(tokContent)
 
-	return {type = Lexer.tokT.strEscape, value = tokContent, position = tokPos}
+	return {t = Lexer.tokT.strEscape, value = tokContent, position = tokPos}
 end
 
-local function readFStringDollar(tokPos:Position)
+local function readFStringDollar()
 	local lel = buf[curposreal]
 	if buf[curposreal]:find("[_%a]") then
 		curpos += 1
@@ -406,21 +441,18 @@ local function readFStringDollar(tokPos:Position)
 			lel ..= buf[curposreal]
 		end
 	else
-		error({msg = "Nothing to format", lastToken = {type = Lexer.tokT.fStrDollarContent, value = lel, position = tokPos}, 1})
+		error({msg = "Nothing to format", lastToken = {t = Lexer.tokT.fStrDollarContent, value = lel, position = tokPos}, 1})
 	end
-	return {type = Lexer.tokT.fStrDollarContent, value = lel, position = tokPos}
+	return {t = Lexer.tokT.fStrDollarContent, value = lel, position = tokPos}
 end
 
---[[
-	Reads a double quoted string, goes to state returnNewlineTok if it finds a \n or \r,
-	if there isn't, it just returns to state seekTokens.
-]]
-local function stringRead(tokPos:Position)
+local function stringRead()
 	local tokContent = ""
 	print(buf[curposreal])
 	tokPos.startPos = curpos
 	tokPos.endPos = curpos
 
+	--TODO: make all strings multilinable why did i not do that from the beginnign aiioWJF
 	if buf[curposreal] ~= "$" and lexerState ~= lexerStates.readStringOneQuote then
 		while buf[curposreal] ~= "\"" and (buf[curposreal] ~= "\n" or buf[curposreal] ~= "\r") and buf[curposreal] ~= "\\" do
 			print(buf[curposreal])
@@ -465,10 +497,10 @@ local function stringRead(tokPos:Position)
 	print("state:", lexerState, "state to return to:", returnToState)
 
 	print(buf[curposreal])
-	return {type = Lexer.tokT.strLetters, value = tokContent, position = tokPos}
+	return {t = Lexer.tokT.strLetters, value = tokContent, position = tokPos}
 end
 
-local function doNewlineCheck(tokPos:Position)
+local function doNewlineCheck()
 	lexerState = returnToState
 	print("state:", lexerState, "state to return:", returnToState)
 
@@ -478,9 +510,8 @@ local function doNewlineCheck(tokPos:Position)
 			tokPos.endPos = curpos + 1
 			curline += 1
 			curpos = 2
-			print(buf[curposreal])
 			curposreal += 2
-			return {type = Lexer.tokT.newlineReturn, value = "\r\n", position = tokPos}
+			return {t = Lexer.tokT.newlineReturn, value = "\r\n", position = tokPos}
 		else
 			local whar = "\n"
 			if buf[curposreal-1] == "\r" then
@@ -490,17 +521,16 @@ local function doNewlineCheck(tokPos:Position)
 			tokPos.endPos = curpos
 			curline += 1
 			curpos = 1
-			print(buf[curposreal])
 			curposreal += 1
 
-			return {type = Lexer.tokT.newline, value = whar, position = tokPos}
+			return {t = Lexer.tokT.newline, value = whar, position = tokPos}
 		end
 	end
 	return nil
 end
 
 --[[
-	initialises a new instance of a lexer so that we can multithread the compilation in the future.
+	initialises a new instance of a lexer so that we can multithread the compilation in the future if the lexer stage gets a bit too slow for whatever reason.
 ]]
 function Lexer.new()
 	local instance = setmetatable({}, Lexer)
@@ -517,7 +547,7 @@ end
 
 --[[
 	Resets the position and state of the lexer.
-	Might be useful if you want to lex the script from the beginning.
+	Might be useful if you want to turn the script into lexemes again from the beginning.
 ]]
 function Lexer:resetState()
 	curposreal = 1
@@ -527,20 +557,9 @@ function Lexer:resetState()
 end
 
 function Lexer:nextToken()
-	local tokPos = {0, 0, 0}
+	tokPos = {startPos = 0, line = 0, endPos = 0}
 
-	local function proceed(amount:number?)
-		if amount and amount ~= 1 then
-			tokPos.endPos += (amount - 1)
-			curposreal += amount
-			curpos += amount
-		else
-			curposreal += 1
-			curpos += 1
-		end
-	end
-
-	print("finding token, current state is", lexerState)
+	--print("finding token, current state is", lexerState)
 
 	tokPos.line = curline
 
@@ -551,8 +570,6 @@ function Lexer:nextToken()
 			return readStringQuote(tokPos)
 		elseif lexerState == lexerStates.readStringEscape then
 			return stringEscapeRead(tokPos)
-		elseif lexerState == lexerStates.readRegexp then
-			error("UNIMPLEMENTED")
 		elseif lexerState == lexerStates.readComment then
 			error("UNIMPLEMENTED")
 		elseif lexerState == lexerStates.readMultiComment then
@@ -563,20 +580,18 @@ function Lexer:nextToken()
 	end
 
 	if #buf == 0 or curposreal > #buf then
-		return {Lexer.tokT.eof, "<EOF>", tokPos}
+		return {t = Lexer.tokT.eof, value = "<EOF>", position = tokPos}
 	end
 
 	if buf[curposreal] == " " or buf[curposreal] == "\t" then
 		local spacesntabs = ""
 		tokPos.startPos = curpos
 		while buf[curposreal] == " " or buf[curposreal] == "\t" do
-			if buf[curposreal] == " " or buf[curposreal] == "\t" then
-				spacesntabs ..= buf[curposreal]
-				proceed()
-			end
+			spacesntabs ..= buf[curposreal]
+			proceed()
 		end
 		tokPos.endPos = curpos
-		return {type = Lexer.tokT.tab, value = spacesntabs, position = tokPos}
+		return {t = Lexer.tokT.tab, value = spacesntabs, position = tokPos}
 	end
 
 	local apossiblenewline = doNewlineCheck(tokPos)
@@ -589,10 +604,13 @@ function Lexer:nextToken()
 		tokPos.startPos = curpos
 
 		while buf[curposreal]:find("[_%a%d]") do
-			if buf[curposreal]:find("[_%a%d]") then
-				somethingStr ..= buf[curposreal]
-				proceed()
-			end
+			somethingStr ..= buf[curposreal]
+			proceed()
+		end
+
+		if buf[curposreal] == "!" then
+			somethingStr ..= buf[curposreal]
+			proceed()
 		end
 
 		tokPos.endPos = curpos
@@ -600,7 +618,7 @@ function Lexer:nextToken()
 		for i in ipairs(resKeywords) do
 			if somethingStr == resKeywords[i] then
 				local aa = "kv" .. resKeywords[i]:sub(1, 1):upper() .. resKeywords[i]:sub(2)
-				return {type = Lexer.tokT[aa], value = resKeywords[i], position = tokPos}
+				return {t = Lexer.tokT[aa], value = resKeywords[i], position = tokPos}
 			end
 		end
 
@@ -622,14 +640,18 @@ function Lexer:nextToken()
 					strpos += 1
 					strposreal += 1
 				end
-				return {Lexer.tokT.ident, somethingStr, tokPos}
+				if beef[strposreal] == "!" then
+					strpos += 1
+					strposreal += 1
+				end
+				return {t = Lexer.tokT.ident, value = somethingStr, position = tokPos}
 			elseif beef[strposreal]:find("%u") then
 				while beef[strposreal] ~= "" and beef[strposreal] ~= nil and beef[strposreal] do
 					beef[strposreal] = beef[strposreal]
 					strpos += 1
 					strposreal += 1
 				end
-				return {type = Lexer.tokT.identT, value = somethingStr, position = tokPos}
+				return {t = Lexer.tokT.identT, value = somethingStr, position = tokPos}
 			end
 		end
 	elseif buf[curposreal]:find("%d") then
@@ -664,77 +686,77 @@ function Lexer:nextToken()
 		if isfloat then
 			if hasexponent then
 				if someth:sub(1,1) == "." then
-					return {type = Lexer.tokT.peFloat, value = someth, position = tokPos}
+					return {t = Lexer.tokT.peFloat, value = someth, position = tokPos}
 				else
-					return {type = Lexer.tokT.eFloat, value = someth, position = tokPos}
+					return {t = Lexer.tokT.eFloat, value = someth, position = tokPos}
 				end
 			elseif someth:sub(1,1) == "." then
-				return {type = Lexer.tokT.pFloat, value = someth, position = tokPos}
+				return {t = Lexer.tokT.pFloat, value = someth, position = tokPos}
 			else
-				return {type = Lexer.tokT.float, value = someth, position = tokPos}
+				return {t = Lexer.tokT.float, value = someth, position = tokPos}
 			end
 		elseif ishex then
-			return {type = Lexer.tokT.hex, value = someth, position = tokPos}
+			return {t = Lexer.tokT.hex, value = someth, position = tokPos}
 		else
-			return {type = Lexer.tokT.int, value = someth, position = tokPos}
+			return {t = Lexer.tokT.int, value = someth, position = tokPos}
 		end
 	--TODO: make all of these into 1 function
 	elseif buf[curposreal] == ";" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		proceed()
-		return {type = Lexer.tokT.semicolon, value = ";", position = tokPos}
+		return {t = Lexer.tokT.semicolon, value = ";", position = tokPos}
 	elseif buf[curposreal] == ":" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		proceed()
-		return {type = Lexer.tokT.colon, value = ":", position = tokPos}
+		return {t = Lexer.tokT.colon, value = ":", position = tokPos}
 	elseif buf[curposreal] == "." then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "." and buf[curposreal+2] == "." then
 			proceed(3)
 			tokPos.endPos += 2
-			return {type = Lexer.tokT.interval, value = "...", position = tokPos}
+			return {t = Lexer.tokT.interval, value = "...", position = tokPos}
 		else
 			proceed()
-			return {type = Lexer.tokT.dot, value = ".", position = tokPos}
+			return {t = Lexer.tokT.dot, value = ".", position = tokPos}
 		end
 	elseif buf[curposreal] == "," then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		proceed()
-		return {type = Lexer.tokT.comma, value = ",", position = tokPos}
+		return {t = Lexer.tokT.comma, value = ",", position = tokPos}
 	elseif buf[curposreal] == "{" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		proceed()
-		return {type = Lexer.tokT.cuBrakOpen, value = "{", position = tokPos}
+		return {t = Lexer.tokT.cuBrakOpen, value = "{", position = tokPos}
 	elseif buf[curposreal] == "}" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		proceed()
-		return {type = Lexer.tokT.cuBrakClose, value = "}", position = tokPos}
+		return {t = Lexer.tokT.cuBrakClose, value = "}", position = tokPos}
 	elseif buf[curposreal] == "(" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		proceed()
-		return {type = Lexer.tokT.brakOpen, value = "(", position = tokPos}
+		return {t = Lexer.tokT.brakOpen, value = "(", position = tokPos}
 	elseif buf[curposreal] == ")" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		proceed()
-		return {type = Lexer.tokT.brakClose, value = ")", position = tokPos}
+		return {t = Lexer.tokT.brakClose, value = ")", position = tokPos}
 	elseif buf[curposreal] == "[" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		proceed()
-		return {type = Lexer.tokT.sqBrakOpen, value = "[", position = tokPos}
+		return {t = Lexer.tokT.sqBrakOpen, value = "[", position = tokPos}
 	elseif buf[curposreal] == "]" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		proceed()
-		return {type = Lexer.tokT.sqBrakClose, value = "]", position = tokPos}
+		return {t = Lexer.tokT.sqBrakClose, value = "]", position = tokPos}
 	elseif buf[curposreal] == "\"" then
 		lexerState = lexerStates.readStringTwoQuotes
 		returnToState = lexerStates.readStringTwoQuotes
@@ -748,75 +770,72 @@ function Lexer:nextToken()
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "=" then
 			proceed(2)
-			return {type = Lexer.tokT.addAssign, value = "+=", position = tokPos}
+			return {t = Lexer.tokT.addAssign, value = "+=", position = tokPos}
 		elseif buf[curposreal+1] == "+" then
 			proceed(2)
-			return {type = Lexer.tokT.unaryPlus, value = "++", position = tokPos}
+			return {t = Lexer.tokT.unaryPlus, value = "++", position = tokPos}
 		else
 			proceed()
-			return {type = Lexer.tokT.addOp, value = "+", position = tokPos}
+			return {t = Lexer.tokT.addOp, value = "+", position = tokPos}
 		end
 	elseif buf[curposreal] == "-" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "=" then
 			proceed(2)
-			return {type = Lexer.tokT.subAssign, value = "-=", position = tokPos}
+			return {t = Lexer.tokT.subAssign, value = "-=", position = tokPos}
 		elseif buf[curposreal+1] == "-" then
 			proceed(2)
-			return {type = Lexer.tokT.unaryMinus, value = "--", position = tokPos}
+			return {t = Lexer.tokT.unaryMinus, value = "--", position = tokPos}
 		elseif buf[curposreal+1] == ">" then
 			proceed(2)
-			return {type = Lexer.tokT.arrowF, value = "->", position = tokPos}
+			return {t = Lexer.tokT.arrowF, value = "->", position = tokPos}
 		else
 			proceed()
-			return {type = Lexer.tokT.subOp, value = "-", position = tokPos}
+			return {t = Lexer.tokT.subOp, value = "-", position = tokPos}
 		end
 	elseif buf[curposreal] == "*" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "=" then
 			proceed(2)
-			return {type = Lexer.tokT.multAssign, value = "*=", position = tokPos}
+			return {t = Lexer.tokT.multAssign, value = "*=", position = tokPos}
 		else
 			proceed()
-			return {type = Lexer.tokT.multOp, value = "*", position = tokPos}
+			return {t = Lexer.tokT.multOp, value = "*", position = tokPos}
 		end
 	elseif buf[curposreal] == "/" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "=" then
 			proceed(2)
-			return {type = Lexer.tokT.divAssign, value = "/=", position = tokPos}
+			return {t = Lexer.tokT.divAssign, value = "/=", position = tokPos}
 		elseif buf[curposreal+1] == "/" then
 			proceed(2)
 			local maythegodhelpme = "//"
 			while buf[curposreal] ~= "\r" or buf[curposreal] ~= "\n" do
-				if buf[curposreal] == "\r" or buf[curposreal] == "\n" then
-					maythegodhelpme ..= buf[curposreal]
-					proceed()
-					curline = 1
-					return {type = Lexer.tokT.comment, value = maythegodhelpme, position = tokPos}
-				else
-					maythegodhelpme ..= buf[curposreal]
-					proceed()
-					print(buf[curposreal])
-				end
+				maythegodhelpme ..= buf[curposreal]
+				proceed()
+				curline = 1
+				return {t = Lexer.tokT.comment, value = maythegodhelpme, position = tokPos}
 			end
-			return {type = Lexer.tokT.comment, value = maythegodhelpme, position = tokPos}
+			maythegodhelpme ..= buf[curposreal]
+			proceed()
+			print(buf[curposreal])
+			return {t = Lexer.tokT.comment, value = maythegodhelpme, position = tokPos}
 		elseif buf[curposreal+1] == "*" then
 			local maythegodhelpme = buf[curposreal] .. buf[curposreal+1]
 			proceed(2)
 			while true do
 				if curposreal > #buf then
-					error({msg = "Unclosed multiline comment.", lastToken = {type = Lexer.tokT.multiCom, value = maythegodhelpme, position = tokPos}, fileRef = fileref}, 1)
+					error({msg = "Unclosed multiline comment.", lastToken = {t = Lexer.tokT.multiCom, value = maythegodhelpme, position = tokPos}, fileRef = fileref}, 1)
 				elseif buf[curposreal] == "*" and buf[curposreal+1] == "/" then
 					print(maythegodhelpme)
 					maythegodhelpme ..= buf[curposreal] 
 					maythegodhelpme ..= buf[curposreal+1]
 					print(maythegodhelpme)
 					proceed(2)
-					return {type = Lexer.tokT.multiCom, value = maythegodhelpme, position = tokPos}
+					return {t = Lexer.tokT.multiCom, value = maythegodhelpme, position = tokPos}
 				else
 					maythegodhelpme ..= buf[curposreal]
 					proceed()
@@ -825,61 +844,61 @@ function Lexer:nextToken()
 			end
 		else
 			proceed()
-			return {type = Lexer.tokT.divOp, value = "/", position = tokPos}
+			return {t = Lexer.tokT.divOp, value = "/", position = tokPos}
 		end
 	elseif buf[curposreal] == "%" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "=" then
 			proceed(2)
-			return {type = Lexer.tokT.modAssign, value = "%=", position = tokPos}
+			return {t = Lexer.tokT.modAssign, value = "%=", position = tokPos}
 		else
 			proceed()
-			return {type = Lexer.tokT.mod, value = "%", position = tokPos}
+			return {t = Lexer.tokT.mod, value = "%", position = tokPos}
 		end
 	elseif buf[curposreal] == ">" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "=" then
 			proceed(2)
-			return {type = Lexer.tokT.moreOrEqual, value = ">=", position = tokPos}
+			return {t = Lexer.tokT.moreOrEqual, value = ">=", position = tokPos}
 		elseif buf[curposreal+1] == ">" then
 			if buf[curposreal+2] == "=" then
 				proceed(3)
-				return {type = Lexer.tokT.bitShiftRAssign, value = ">>=", position = tokPos}
+				return {t = Lexer.tokT.bitShiftRAssign, value = ">>=", position = tokPos}
 			elseif buf[curposreal+2] == ">" then
 				if buf[curposreal+3] == "=" then
 					proceed(4)
-					return {type = Lexer.tokT.uBitShiftRAssign, value = ">>>=", position = tokPos}
+					return {t = Lexer.tokT.uBitShiftRAssign, value = ">>>=", position = tokPos}
 				else
 					proceed(3)
-					return {type = Lexer.tokT.uBitShiftR, value = ">>>", position = tokPos}
+					return {t = Lexer.tokT.uBitShiftR, value = ">>>", position = tokPos}
 				end
 			else
 				proceed(2)
-				return {type = Lexer.tokT.bitShiftR, value = ">>", position = tokPos}
+				return {t = Lexer.tokT.bitShiftR, value = ">>", position = tokPos}
 			end
 		else
 			proceed()
-			return {type = Lexer.tokT.moreOp, value = ">", position = tokPos}
+			return {t = Lexer.tokT.moreOp, value = ">", position = tokPos}
 		end
 	elseif buf[curposreal] == "<" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "=" then
 			proceed(2)
-			return {type = Lexer.tokT.lessOrEqual, value = "<=", position = tokPos}
+			return {t = Lexer.tokT.lessOrEqual, value = "<=", position = tokPos}
 		elseif buf[curposreal+1] == "<" then
 			if buf[curposreal+2] == "=" then
 				proceed(3)
-				return {type = Lexer.tokT.bitShiftLAssign, "<<=", tokPos}
+				return {t = Lexer.tokT.bitShiftLAssign, "<<=", tokPos}
 			else
 				proceed(2)
-				return {type = Lexer.tokT.bitShiftL, value = "<<", position = tokPos}
+				return {t = Lexer.tokT.bitShiftL, value = "<<", position = tokPos}
 			end
 		else
 			proceed()
-			return {type = Lexer.tokT.lessOp, value = "<", position = tokPos}
+			return {t = Lexer.tokT.lessOp, value = "<", position = tokPos}
 		end
 	elseif buf[curposreal] == "|" then
 		tokPos.startPos = curpos
@@ -887,17 +906,17 @@ function Lexer:nextToken()
 		if buf[curposreal+1] == "|" then
 			if buf[curposreal+2] == "=" then
 				proceed(3)
-				return {type = Lexer.tokT.orAssign, value = "||=", position = tokPos}
+				return {t = Lexer.tokT.orAssign, value = "||=", position = tokPos}
 			else
 				proceed(2)
-				return {type = Lexer.tokT.orOp, value = "||", position = tokPos}
+				return {t = Lexer.tokT.orOp, value = "||", position = tokPos}
 			end
 		elseif buf[curposreal+1] == "=" then
 			proceed(2)
-			return {type = Lexer.tokT.bitOrAssign, value = "|=", position = tokPos}
+			return {t = Lexer.tokT.bitOrAssign, value = "|=", position = tokPos}
 		else
 			proceed()
-			return {type = Lexer.tokT.bitOr, value = "|", position = tokPos}
+			return {t = Lexer.tokT.bitOr, value = "|", position = tokPos}
 		end
 	elseif buf[curposreal] == "&" then
 		tokPos.startPos = curpos
@@ -905,17 +924,17 @@ function Lexer:nextToken()
 		if buf[curposreal+1] == "&" then
 			if buf[curposreal+2] == "=" then
 				proceed(3)
-				return {type = Lexer.tokT.andAssign, value = "&&=", position = tokPos}
+				return {t = Lexer.tokT.andAssign, value = "&&=", position = tokPos}
 			else
 				proceed(2)
-				return {type = Lexer.tokT.andOp, value = "&&", position = tokPos}
+				return {t = Lexer.tokT.andOp, value = "&&", position = tokPos}
 			end
 		elseif buf[curposreal+1] == "=" then
 			proceed(2)
-			return {type = Lexer.tokT.bitAndAssign, value = "&=", position = tokPos}
+			return {t = Lexer.tokT.bitAndAssign, value = "&=", position = tokPos}
 		else
 			proceed()
-			return {type = Lexer.tokT.bitAnd, value = "&", position = tokPos}
+			return {t = Lexer.tokT.bitAnd, value = "&", position = tokPos}
 		end
 	elseif buf[curposreal] == "?" then
 		tokPos.startPos = curpos
@@ -923,40 +942,40 @@ function Lexer:nextToken()
 		if buf[curposreal+1] == "?" then
 			if buf[curposreal+2] == "=" then
 				proceed(3)
-				return {type = Lexer.tokT.nullCoalAssign, value = "??=", position = tokPos}
+				return {t = Lexer.tokT.nullCoalAssign, value = "??=", position = tokPos}
 			else
 				proceed(2)
-				return {type = Lexer.tokT.nullCoal, value = "??", position = tokPos}
+				return {t = Lexer.tokT.nullCoal, value = "??", position = tokPos}
 			end
 		elseif buf[curposreal+1] == "." then
 			proceed(2)
-			return {type = Lexer.tokT.qmarkDot, value = "?.", position = tokPos}
+			return {t = Lexer.tokT.qmarkDot, value = "?.", position = tokPos}
 		else
 			proceed()
-			return {type = Lexer.tokT.questionOp, value = "?", position = tokPos}
+			return {t = Lexer.tokT.questionOp, value = "?", position = tokPos}
 		end
 	elseif buf[curposreal] == "^" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "=" then
 			proceed(2)
-			return {type = Lexer.tokT.bitXorAssign, value = "^=", position = tokPos}
+			return {t = Lexer.tokT.bitXorAssign, value = "^=", position = tokPos}
 		else
 			proceed()
-			return {type = Lexer.tokT.bitXor, value = "^", position = tokPos}
+			return {t = Lexer.tokT.bitXor, value = "^", position = tokPos}
 		end
 	elseif buf[curposreal] == "=" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "=" then
 			proceed(2)
-			return {type = Lexer.tokT.compare, value = "==", position = tokPos}
+			return {t = Lexer.tokT.compare, value = "==", position = tokPos}
 		elseif buf[curposreal+1] == ">" then
 			proceed(2)
-			return {type = Lexer.tokT.arrowM, value = "=>", position = tokPos}
+			return {t = Lexer.tokT.arrowM, value = "=>", position = tokPos}
 		else
 			proceed()
-			return {type = Lexer.tokT.assignOp, value = "=", position = tokPos}
+			return {t = Lexer.tokT.assignOp, value = "=", position = tokPos}
 		end
 	elseif buf[curposreal] == "~" then
 		tokPos.startPos = curpos
@@ -967,7 +986,7 @@ function Lexer:nextToken()
 			print(buf[curposreal])
 			while buf[curposreal] ~= "/" and buf[curposreal]:find("[%a%d\\r\\n\\t\r\n%$%.%*%+%-%^%?%[%]%(%)|{}]") do
 				if curposreal >= #buf then
-					error({msg = "Unclosed regexp.", lastToken = {type = Lexer.tokT.regexp, value = aaal, position = tokPos}, fileRef = fileref}, 1)
+					error({msg = "Unclosed regexp.", lastToken = {t = Lexer.tokT.regexp, value = aaal, position = tokPos}, fileRef = fileref}, 1)
 				end
 				if buf[curposreal] ~= "/" and buf[curposreal]:find("[%a%d\\r\\n\\t%$%.%*%+%-%^%?%[%]%(%)|{}]") then
 					aaal ..= buf[curposreal]
@@ -975,12 +994,12 @@ function Lexer:nextToken()
 					print(aaal)
 					print(buf[curposreal])
 				elseif buf[curposreal] == "\r" or buf[curposreal] == "\n" then
-					error({msg = "Unclosed regexp.", lastToken = {type = Lexer.tokT.regexp, value = aaal, position = tokPos}, fileRef = fileref}, 1)
+					error({msg = "Unclosed regexp.", lastToken = {t = Lexer.tokT.regexp, value = aaal, position = tokPos}, fileRef = fileref}, 1)
 				end
 			end
 
 			if curposreal >= #buf then
-				error({msg = "Unclosed regexp.", lastToken = {type = Lexer.tokT.regexp, value = aaal, position = tokPos}, fileRef = fileref}, 1)
+				error({msg = "Unclosed regexp.", lastToken = {t = Lexer.tokT.regexp, value = aaal, position = tokPos}, fileRef = fileref}, 1)
 			end
 
 			if buf[curposreal] == "/" then
@@ -994,16 +1013,16 @@ function Lexer:nextToken()
 					print(aaal)
 					print(buf[curposreal])
 				end
-				return {Lexer.tokT.regexp, aaal, tokPos}
+				return {t = Lexer.tokT.regexp, value = aaal, position = tokPos}
 			else
 				print("WHAT")
 				return nil
 			end
 		else
-			return {type = Lexer.tokT.bitNot, value = "~", position = tokPos}
+			return {t = Lexer.tokT.bitNot, value = "~", position = tokPos}
 		end
 	end
-	error({"Unknown symbol.", {type = 0, value = buf[curposreal], position = tokPos}, fileref}, 1)
+	error({"Unknown symbol.", {t = 0, value = buf[curposreal], position = tokPos}, fileref}, 1)
 end
 
 return Lexer

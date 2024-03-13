@@ -39,8 +39,6 @@ class Greeting
 }]]
 
 local lexerModule = require(workspace.LuauScript.AST.Lexer)
-local lexerErr = require(workspace.LuauScript.AST.LexerModules.LexerError)
-local tokModule = require(workspace.LuauScript.AST.LexerModules.Token)
 
 -------------------------------------------------------------------------------------------
 
@@ -52,32 +50,29 @@ local toks = {}
 local a = lexer:nextToken()
 table.insert(toks, a)
 
-local hhh =
-function()
-	while a and (a.type ~= tokModule.tokT.eof) do
-		a = lexer:nextToken()
-		table.insert(toks, a)
-	end
-	if a.type == tokModule.tokT.eof then
-		print(a.type)
-	end
-end
+local hhh = function()
+				while (a.t ~= lexerModule.tokT.eof) and (a.t ~= nil) do
+					a = lexer:nextToken()
+					table.insert(toks, a)
+					print(a, lexerModule.tokTMirror[a.t])
+					print(toks)
+				end
+				if a.t == lexerModule.tokT.eof then
+					print(a.t)
+				end
+			end
 
 -- don't ask me about the xpcall
-xpcall(
-	hhh(),
+--xpcall(
+	hhh()--,
 
-	function(lel:any)
+	--[[function(lel:any)
 		if type(lel) == "table" then
 			print(table:unpack(lel))
-		else
+		elseif lel ~= nil then
 			print(lel)
 		end
-	end)
-
-for i, k in ipairs(toks) do
-	print(i, k, "[tokName] = " .. tokModule.tokTMirror[k["type"]])
-end
+	end)]]
 
 -------------------------------------------------------------------------------------------
 
