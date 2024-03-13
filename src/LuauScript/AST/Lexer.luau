@@ -172,8 +172,8 @@ local tokProt =
 	--TODO: decide on how to do casts (possibly allow C-style unsafe casts, or C++-style cast functions?)
 	"kvCast",							-- cast. read https://haxe.org/manual/expression-cast-unsafe.html and https://haxe.org/manual/expression-cast-safe.html
 	"ident",							-- packages and variables.
-	"identT",							-- 122: classes and types
-	"identMacro"						-- 123: rust-like macro_funcion! identity
+	"identT",							-- classes and types
+	"identMacro"						-- rust-like macro_funcion! identity
 }
 
 local fakei = 0
