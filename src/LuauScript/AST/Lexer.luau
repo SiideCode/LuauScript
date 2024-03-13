@@ -200,6 +200,7 @@ local resKeywords =
 	"enum",
 	"abstract",
 	"type",
+	"struct",
 	"extends",
 	"implements",
 	"global",
