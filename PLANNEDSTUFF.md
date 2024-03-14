@@ -13,9 +13,9 @@ type keyword structs should allow non-anonymous struct declarations inside of th
 ``` unknown
 package;
 
-type struct_name =
+struct struct_name =
 {
-    type innerstruct_name =
+    struct innerstruct_name =
     {
         var data:Int;
         var otherData:String;
