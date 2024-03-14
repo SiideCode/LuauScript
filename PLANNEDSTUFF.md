@@ -25,7 +25,7 @@ type struct_name =
 }
 ```
 
-also allow functions in structs cause why not, they can be values too in Lua/Luau.
+also allow functions in structs cause why not.
 
 ## Preprocessor
 
