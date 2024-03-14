@@ -8,7 +8,7 @@ The language is inspired by  Haxe/ActionScript, Lua/Luau, Rust, and very slightl
 
 It is currently planned for it to be able to be compiled entirely before execution or compiled right before the execution, both for Roblox experience modding. It is also planned to make it transpile into Luau, but it's currently low priority, because it's mainly made for roblox game modding.
 
-## Main modules completion (in order of importance)
+## Main modules completion (in order of priority)
 
 - Lexer: 80-ish%
 - Parser: <1%
