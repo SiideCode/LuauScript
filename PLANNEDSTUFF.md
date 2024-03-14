@@ -11,7 +11,7 @@ Basically, you can either apply a macro to a field, or make a rust-like !-suffix
 type keyword structs should allow non-anonymous struct declarations inside of them, that should also be separated with ";" from other struct members (mostly for consistency with all of the other struct fields). Example:
 
 ``` unknown
-pkg;
+package;
 
 type struct_name =
 {
