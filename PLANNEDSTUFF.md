@@ -63,4 +63,14 @@ func someFunction()
 
 The metadata one is a bit more verbose than rust's function-like syntax for that, but is a a lot nicer to read in my opinion, because you don't have to mentally switch from evaluating comparison statements to evaluating this function-like compile-time comparison thing.
 
+## Recommended formatting
+
+1 new line between stuff like functions
+camelCase for functions and variables, although snake_case is also supported
+PascalCase for type and class names
+UPPERCASE_SNAKE_CASE for constants
+4 spaces for nested stuffs (2 spaces look so wrong, why does this exist? T-T)
+
 ## Unsorted little things
+
+TODO: start writing docs properly, probably build a website for that

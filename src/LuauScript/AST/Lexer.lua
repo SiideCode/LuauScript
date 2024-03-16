@@ -50,6 +50,7 @@ local tokProt =
 	"tab",								-- tabulation
 	"newlineReturn",					-- carriage return and new line
 	"newline",							-- new line or carriage return
+	-- TODO: add binary numbers
 	"hex",								-- hexadecimal number
 	"int",								-- integer
 	"float",							-- floating point
@@ -133,7 +134,7 @@ local tokProt =
 	"kvEnum",							-- enum keyword
 	"kvAbstract",						-- abstract type/class/enum modifier keyword (https://haxe.org/manual/ts-abstract.html) (https://haxe.org/manual/ts-abstract-class.html)
 	"kvType",							-- type declaration keyword, only useful for type alias declarations (works like haxe's typedef, but you can't declare structs like this)
-	"kvStruct",							-- struct declaration keyword. it's only there cause i LOVE the struct keyword for some reason. type and struct separation is rust-like at it's core now, and i love it
+	"kvStruct",							-- struct declaration keyword. it's only there cause i LOVE the struct keyword for some reason. type and struct separation is rust-like at it's core now, and i love it, even tho i don't really like rust
 	"kvExtends",						-- class extension keyword
 	"kvImplements",						-- interface implementation keyword
 	"kvExtern",							-- extern keyword (https://haxe.org/manual/lf-externs.html)
@@ -173,7 +174,7 @@ local tokProt =
 	"kvCast",							-- cast. read https://haxe.org/manual/expression-cast-unsafe.html and https://haxe.org/manual/expression-cast-safe.html
 	"ident",							-- packages and variables.
 	"identT",							-- classes and types
-	"identMacro"						-- rust-like macro_funcion! identity
+	"identMacro"						-- rust-like macro_funcion! identifier
 }
 
 local fakei = 0
@@ -183,7 +184,7 @@ for i = 1, #tokProt, 1 do
 	fakei += 1
 end
 
---be sure to dispose of temps to reduce resource usage slightly :)
+--be sure to let the GC dispose of temps to reduce resource usage slightly :)
 fakei = nil
 tokProt = nil
 
@@ -268,6 +269,15 @@ local function proceed(amount:number?)
 		curposreal += 1
 		curpos += 1
 	end
+end
+
+local function readCommentBegin()
+	lexerState = returnToState
+	print("state:", lexerState, "state to return:", returnToState)
+
+	local comm = ""
+
+	
 end
 
 local function readStringQuote()
@@ -551,17 +561,23 @@ function Lexer:nextToken()
 
 	if lexerState ~= lexerStates.seekTokens then
 		if lexerState == lexerStates.readStringTwoQuotes or lexerState == lexerStates.readStringOneQuote then
-			return stringRead(tokPos)
+			return stringRead()
 		elseif lexerState == lexerStates.readStringQuote then
-			return readStringQuote(tokPos)
+			return readStringQuote()
 		elseif lexerState == lexerStates.readStringEscape then
-			return stringEscapeRead(tokPos)
+			return stringEscapeRead()
+		elseif lexerState == lexerStates.readCommentBegin then
+			return readCommentBegin();
 		elseif lexerState == lexerStates.readComment then
 			error("UNIMPLEMENTED")
+		elseif lexerState == lexerStates.readMultiCommentStart then
+			return 
+		elseif lexerState == lexerStates.readMultiCommentEnd then
+			return 
 		elseif lexerState == lexerStates.readMultiComment then
 			error("UNIMPLEMENTED")
 		elseif lexerState == lexerStates.returnNewlineTok then
-			return doNewlineCheck(tokPos)
+			return doNewlineCheck()
 		end
 	end
 
