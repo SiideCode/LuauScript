@@ -16,10 +16,6 @@ It is currently planned for it to be able to be compiled entirely before executi
 - VM: not started
 - Luau Transpiler: not started
 
-## Note
-
-Currently considering to change the syntax and other stuff a little bit due to concerns related to implementation complexity, performance, and other things.
-
 ## How to include in your rojo project (WIP)
 
 1. get [Rojo](https://rojo.space)
