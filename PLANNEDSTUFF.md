@@ -8,14 +8,14 @@ Basically, you can either apply a macro to a field, or make a rust-like !-suffix
 
 ## Structures
 
-type keyword structs should allow non-anonymous struct declarations inside of them, that should also be separated with ";" from other struct members (mostly for consistency with all of the other struct fields). Example:
+structs should allow non-anonymous struct declarations inside of them, that should also be separated with ";" from other struct members (mostly for consistency with all of the other struct fields). Example:
 
 ``` unknown
-pkg;
+package;
 
-type struct_name =
+struct struct_name =
 {
-    type innerstruct_name =
+    struct innerstruct_name =
     {
         var data:Int;
         var otherData:String;
@@ -25,7 +25,7 @@ type struct_name =
 }
 ```
 
-also allow functions in structs cause why not, they can be values too in Lua/Luau.
+also allow functions in structs cause why not.
 
 ## Preprocessor
 
