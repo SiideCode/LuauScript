@@ -58,7 +58,8 @@ local tokProt =
 	"peFloat",							-- floating point exponent no whole part
 	"eFloat",							-- floating point exponent
 	"intInt",							-- integer interval
-	"comment",							-- one line comment
+	"commentContent",					-- single line comment contents
+	"comment",							-- single line comment start, the end is marked with a newline/newlineReturn (LF/CRLF) token
 	"unaryPlus",						-- unary +1
 	"unaryMinus",						-- unary -1
 	"bitNot",							-- bitwise not (every 1 = 0, every 0 = 1).
@@ -114,9 +115,10 @@ local tokProt =
 	"nullCoal",							-- null coalescing (https://www.tutorialspoint.com/What-is-a-null-coalescing-operator-in-JavaScript)
 	"questionOp",						-- question mark
 	"atMacro",							-- at (macros)
-	"multiCom",							-- begin multiline comment
-	"str",								-- start/begin string ("")
-	"fStr",								-- start/begin formatted string ('')
+	"multiComContent",					-- multiline comment
+	"multiCom",							-- multiline comment start/end
+	"str",								-- start/end string ("")
+	"fStr",								-- start/end formatted string ('')
 	"strLetters",						-- string letters
 	"strEscape",						-- escapes in strings
 	"fStrDollarContent",				-- everything after $, between ${ and }. $$ just adds a $ to fStr.
@@ -271,13 +273,23 @@ local function proceed(amount:number?)
 	end
 end
 
-local function readCommentBegin()
+local function readCommentBeginEnd()
 	lexerState = returnToState
 	print("state:", lexerState, "state to return:", returnToState)
 
 	local comm = ""
 
-	
+	if buf[curposreal] == "/" then
+		if buf[curposreal+1] == "/" then
+			return {t = Lexer.tokT.com}
+		elseif buf[curposreal+1] == "*" then
+
+		end
+	elseif buf[curposreal] == "*" then
+		if buf[curposreal+1] == "/" then
+			
+		end
+	end
 end
 
 local function readStringQuote()
@@ -566,8 +578,8 @@ function Lexer:nextToken()
 			return readStringQuote()
 		elseif lexerState == lexerStates.readStringEscape then
 			return stringEscapeRead()
-		elseif lexerState == lexerStates.readCommentBegin then
-			return readCommentBegin();
+		elseif lexerState == lexerStates.readCommentBeginEnd then
+			return readCommentBeginEnd();
 		elseif lexerState == lexerStates.readComment then
 			error("UNIMPLEMENTED")
 		elseif lexerState == lexerStates.readMultiCommentStart then
