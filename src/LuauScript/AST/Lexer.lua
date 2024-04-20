@@ -6,20 +6,19 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local TableUtil = require(ReplicatedStorage.Packages.tableutil)
 
-type Position = {
+export type Position = {
 	startPos:number,
 	endPos:number,
-	line:number,
-	fileRef:string?
+	line:number
 }
 
-type Token = {
+export type Token = {
 	t:number,
 	value:string?,
 	position:Position
 }
 
-type LexerError = {
+export type LexerError = {
 	msg:string,
 	lastToken:Token,
 	fileRef:string?
@@ -278,10 +277,13 @@ local function readCommentBeginEnd()
 	print("state:", lexerState, "state to return:", returnToState)
 
 	local comm = ""
+	tokPos.startPos = curpos
+	tokPos.endPos = curpos
 
 	if buf[curposreal] == "/" then
 		if buf[curposreal+1] == "/" then
-			return {t = Lexer.tokT.com}
+			tokPos.endPos += 2
+			return {t = Lexer.tokT.com, value = nil, position = tokPos}
 		elseif buf[curposreal+1] == "*" then
 
 		end
@@ -519,7 +521,7 @@ local function doNewlineCheck()
 			curline += 1
 			curpos = 2
 			curposreal += 2
-			return {t = Lexer.tokT.newlineReturn, value = "\r\n", position = tokPos}
+			return {t = Lexer.tokT.newlineReturn, value = nil, position = tokPos}
 		else
 			local whar = "\n"
 			if buf[curposreal-1] == "\r" then
@@ -594,7 +596,7 @@ function Lexer:nextToken()
 	end
 
 	if #buf == 0 or curposreal > #buf then
-		return {t = Lexer.tokT.eof, value = "<EOF>", position = tokPos}
+		return {t = Lexer.tokT.eof, value = nil, position = tokPos}
 	end
 
 	if buf[curposreal] == " " or buf[curposreal] == "\t" then
@@ -632,7 +634,7 @@ function Lexer:nextToken()
 		for i in ipairs(resKeywords) do
 			if somethingStr == resKeywords[i] then
 				local aa = "kv" .. resKeywords[i]:sub(1, 1):upper() .. resKeywords[i]:sub(2)
-				return {t = Lexer.tokT[aa], value = resKeywords[i], position = tokPos}
+				return {t = Lexer.tokT[aa], value = nil, position = tokPos}
 			end
 		end
 
@@ -719,58 +721,58 @@ function Lexer:nextToken()
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		proceed()
-		return {t = Lexer.tokT.semicolon, value = ";", position = tokPos}
+		return {t = Lexer.tokT.semicolon, value = nil, position = tokPos}
 	elseif buf[curposreal] == ":" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		proceed()
-		return {t = Lexer.tokT.colon, value = ":", position = tokPos}
+		return {t = Lexer.tokT.colon, value = nil, position = tokPos}
 	elseif buf[curposreal] == "." then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "." and buf[curposreal+2] == "." then
 			proceed(3)
 			tokPos.endPos += 2
-			return {t = Lexer.tokT.interval, value = "...", position = tokPos}
+			return {t = Lexer.tokT.interval, value = nil, position = tokPos}
 		else
 			proceed()
-			return {t = Lexer.tokT.dot, value = ".", position = tokPos}
+			return {t = Lexer.tokT.dot, value = nil, position = tokPos}
 		end
 	elseif buf[curposreal] == "," then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		proceed()
-		return {t = Lexer.tokT.comma, value = ",", position = tokPos}
+		return {t = Lexer.tokT.comma, value = nil, position = tokPos}
 	elseif buf[curposreal] == "{" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		proceed()
-		return {t = Lexer.tokT.cuBrakOpen, value = "{", position = tokPos}
+		return {t = Lexer.tokT.cuBrakOpen, value = nil, position = tokPos}
 	elseif buf[curposreal] == "}" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		proceed()
-		return {t = Lexer.tokT.cuBrakClose, value = "}", position = tokPos}
+		return {t = Lexer.tokT.cuBrakClose, value = nil, position = tokPos}
 	elseif buf[curposreal] == "(" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		proceed()
-		return {t = Lexer.tokT.brakOpen, value = "(", position = tokPos}
+		return {t = Lexer.tokT.brakOpen, value = nil, position = tokPos}
 	elseif buf[curposreal] == ")" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		proceed()
-		return {t = Lexer.tokT.brakClose, value = ")", position = tokPos}
+		return {t = Lexer.tokT.brakClose, value = nil, position = tokPos}
 	elseif buf[curposreal] == "[" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		proceed()
-		return {t = Lexer.tokT.sqBrakOpen, value = "[", position = tokPos}
+		return {t = Lexer.tokT.sqBrakOpen, value = nil, position = tokPos}
 	elseif buf[curposreal] == "]" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		proceed()
-		return {t = Lexer.tokT.sqBrakClose, value = "]", position = tokPos}
+		return {t = Lexer.tokT.sqBrakClose, value = nil, position = tokPos}
 	elseif buf[curposreal] == "\"" then
 		lexerState = lexerStates.readStringTwoQuotes
 		returnToState = lexerStates.readStringTwoQuotes
@@ -784,46 +786,46 @@ function Lexer:nextToken()
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "=" then
 			proceed(2)
-			return {t = Lexer.tokT.addAssign, value = "+=", position = tokPos}
+			return {t = Lexer.tokT.addAssign, value = nil, position = tokPos}
 		elseif buf[curposreal+1] == "+" then
 			proceed(2)
-			return {t = Lexer.tokT.unaryPlus, value = "++", position = tokPos}
+			return {t = Lexer.tokT.unaryPlus, value = nil, position = tokPos}
 		else
 			proceed()
-			return {t = Lexer.tokT.addOp, value = "+", position = tokPos}
+			return {t = Lexer.tokT.addOp, value = nil, position = tokPos}
 		end
 	elseif buf[curposreal] == "-" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "=" then
 			proceed(2)
-			return {t = Lexer.tokT.subAssign, value = "-=", position = tokPos}
+			return {t = Lexer.tokT.subAssign, value = nil, position = tokPos}
 		elseif buf[curposreal+1] == "-" then
 			proceed(2)
-			return {t = Lexer.tokT.unaryMinus, value = "--", position = tokPos}
+			return {t = Lexer.tokT.unaryMinus, value = nil, position = tokPos}
 		elseif buf[curposreal+1] == ">" then
 			proceed(2)
-			return {t = Lexer.tokT.arrowF, value = "->", position = tokPos}
+			return {t = Lexer.tokT.arrowF, value = nil, position = tokPos}
 		else
 			proceed()
-			return {t = Lexer.tokT.subOp, value = "-", position = tokPos}
+			return {t = Lexer.tokT.subOp, value = nil, position = tokPos}
 		end
 	elseif buf[curposreal] == "*" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "=" then
 			proceed(2)
-			return {t = Lexer.tokT.multAssign, value = "*=", position = tokPos}
+			return {t = Lexer.tokT.multAssign, value = nil, position = tokPos}
 		else
 			proceed()
-			return {t = Lexer.tokT.multOp, value = "*", position = tokPos}
+			return {t = Lexer.tokT.multOp, value = nil, position = tokPos}
 		end
 	elseif buf[curposreal] == "/" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "=" then
 			proceed(2)
-			return {t = Lexer.tokT.divAssign, value = "/=", position = tokPos}
+			return {t = Lexer.tokT.divAssign, value = nil, position = tokPos}
 		elseif buf[curposreal+1] == "/" then
 			proceed(2)
 			local maythegodhelpme = "//"
@@ -858,61 +860,61 @@ function Lexer:nextToken()
 			end
 		else
 			proceed()
-			return {t = Lexer.tokT.divOp, value = "/", position = tokPos}
+			return {t = Lexer.tokT.divOp, value = nil, position = tokPos}
 		end
 	elseif buf[curposreal] == "%" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "=" then
 			proceed(2)
-			return {t = Lexer.tokT.modAssign, value = "%=", position = tokPos}
+			return {t = Lexer.tokT.modAssign, value = nil, position = tokPos}
 		else
 			proceed()
-			return {t = Lexer.tokT.mod, value = "%", position = tokPos}
+			return {t = Lexer.tokT.mod, value = nil, position = tokPos}
 		end
 	elseif buf[curposreal] == ">" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "=" then
 			proceed(2)
-			return {t = Lexer.tokT.moreOrEqual, value = ">=", position = tokPos}
+			return {t = Lexer.tokT.moreOrEqual, value = nil, position = tokPos}
 		elseif buf[curposreal+1] == ">" then
 			if buf[curposreal+2] == "=" then
 				proceed(3)
-				return {t = Lexer.tokT.bitShiftRAssign, value = ">>=", position = tokPos}
+				return {t = Lexer.tokT.bitShiftRAssign, value = nil, position = tokPos}
 			elseif buf[curposreal+2] == ">" then
 				if buf[curposreal+3] == "=" then
 					proceed(4)
-					return {t = Lexer.tokT.uBitShiftRAssign, value = ">>>=", position = tokPos}
+					return {t = Lexer.tokT.uBitShiftRAssign, value = nil, position = tokPos}
 				else
 					proceed(3)
-					return {t = Lexer.tokT.uBitShiftR, value = ">>>", position = tokPos}
+					return {t = Lexer.tokT.uBitShiftR, value = nil, position = tokPos}
 				end
 			else
 				proceed(2)
-				return {t = Lexer.tokT.bitShiftR, value = ">>", position = tokPos}
+				return {t = Lexer.tokT.bitShiftR, value = nil, position = tokPos}
 			end
 		else
 			proceed()
-			return {t = Lexer.tokT.moreOp, value = ">", position = tokPos}
+			return {t = Lexer.tokT.moreOp, value = nil, position = tokPos}
 		end
 	elseif buf[curposreal] == "<" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "=" then
 			proceed(2)
-			return {t = Lexer.tokT.lessOrEqual, value = "<=", position = tokPos}
+			return {t = Lexer.tokT.lessOrEqual, value = nil, position = tokPos}
 		elseif buf[curposreal+1] == "<" then
 			if buf[curposreal+2] == "=" then
 				proceed(3)
 				return {t = Lexer.tokT.bitShiftLAssign, "<<=", tokPos}
 			else
 				proceed(2)
-				return {t = Lexer.tokT.bitShiftL, value = "<<", position = tokPos}
+				return {t = Lexer.tokT.bitShiftL, value = nil, position = tokPos}
 			end
 		else
 			proceed()
-			return {t = Lexer.tokT.lessOp, value = "<", position = tokPos}
+			return {t = Lexer.tokT.lessOp, value = nil, position = tokPos}
 		end
 	elseif buf[curposreal] == "|" then
 		tokPos.startPos = curpos
@@ -920,17 +922,17 @@ function Lexer:nextToken()
 		if buf[curposreal+1] == "|" then
 			if buf[curposreal+2] == "=" then
 				proceed(3)
-				return {t = Lexer.tokT.orAssign, value = "||=", position = tokPos}
+				return {t = Lexer.tokT.orAssign, value = nil, position = tokPos}
 			else
 				proceed(2)
-				return {t = Lexer.tokT.orOp, value = "||", position = tokPos}
+				return {t = Lexer.tokT.orOp, value = nil, position = tokPos}
 			end
 		elseif buf[curposreal+1] == "=" then
 			proceed(2)
-			return {t = Lexer.tokT.bitOrAssign, value = "|=", position = tokPos}
+			return {t = Lexer.tokT.bitOrAssign, value = nil, position = tokPos}
 		else
 			proceed()
-			return {t = Lexer.tokT.bitOr, value = "|", position = tokPos}
+			return {t = Lexer.tokT.bitOr, value = nil, position = tokPos}
 		end
 	elseif buf[curposreal] == "&" then
 		tokPos.startPos = curpos
@@ -938,17 +940,17 @@ function Lexer:nextToken()
 		if buf[curposreal+1] == "&" then
 			if buf[curposreal+2] == "=" then
 				proceed(3)
-				return {t = Lexer.tokT.andAssign, value = "&&=", position = tokPos}
+				return {t = Lexer.tokT.andAssign, value = nil, position = tokPos}
 			else
 				proceed(2)
-				return {t = Lexer.tokT.andOp, value = "&&", position = tokPos}
+				return {t = Lexer.tokT.andOp, value = nil, position = tokPos}
 			end
 		elseif buf[curposreal+1] == "=" then
 			proceed(2)
-			return {t = Lexer.tokT.bitAndAssign, value = "&=", position = tokPos}
+			return {t = Lexer.tokT.bitAndAssign, value = nil, position = tokPos}
 		else
 			proceed()
-			return {t = Lexer.tokT.bitAnd, value = "&", position = tokPos}
+			return {t = Lexer.tokT.bitAnd, value = nil, position = tokPos}
 		end
 	elseif buf[curposreal] == "?" then
 		tokPos.startPos = curpos
@@ -956,40 +958,40 @@ function Lexer:nextToken()
 		if buf[curposreal+1] == "?" then
 			if buf[curposreal+2] == "=" then
 				proceed(3)
-				return {t = Lexer.tokT.nullCoalAssign, value = "??=", position = tokPos}
+				return {t = Lexer.tokT.nullCoalAssign, value = nil, position = tokPos}
 			else
 				proceed(2)
-				return {t = Lexer.tokT.nullCoal, value = "??", position = tokPos}
+				return {t = Lexer.tokT.nullCoal, value = nil, position = tokPos}
 			end
 		elseif buf[curposreal+1] == "." then
 			proceed(2)
-			return {t = Lexer.tokT.qmarkDot, value = "?.", position = tokPos}
+			return {t = Lexer.tokT.qmarkDot, value = nil, position = tokPos}
 		else
 			proceed()
-			return {t = Lexer.tokT.questionOp, value = "?", position = tokPos}
+			return {t = Lexer.tokT.questionOp, value = nil, position = tokPos}
 		end
 	elseif buf[curposreal] == "^" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "=" then
 			proceed(2)
-			return {t = Lexer.tokT.bitXorAssign, value = "^=", position = tokPos}
+			return {t = Lexer.tokT.bitXorAssign, value = nil, position = tokPos}
 		else
 			proceed()
-			return {t = Lexer.tokT.bitXor, value = "^", position = tokPos}
+			return {t = Lexer.tokT.bitXor, value = nil, position = tokPos}
 		end
 	elseif buf[curposreal] == "=" then
 		tokPos.startPos = curpos
 		tokPos.endPos = curpos
 		if buf[curposreal+1] == "=" then
 			proceed(2)
-			return {t = Lexer.tokT.compare, value = "==", position = tokPos}
+			return {t = Lexer.tokT.compare, value = nil, position = tokPos}
 		elseif buf[curposreal+1] == ">" then
 			proceed(2)
-			return {t = Lexer.tokT.arrowM, value = "=>", position = tokPos}
+			return {t = Lexer.tokT.arrowM, value = nil, position = tokPos}
 		else
 			proceed()
-			return {t = Lexer.tokT.assignOp, value = "=", position = tokPos}
+			return {t = Lexer.tokT.assignOp, value = nil, position = tokPos}
 		end
 	elseif buf[curposreal] == "~" then
 		tokPos.startPos = curpos
@@ -1033,10 +1035,10 @@ function Lexer:nextToken()
 				return nil
 			end
 		else
-			return {t = Lexer.tokT.bitNot, value = "~", position = tokPos}
+			return {t = Lexer.tokT.bitNot, value = nil, position = tokPos}
 		end
 	end
-	error({"Unknown symbol.", {t = 0, value = buf[curposreal], position = tokPos}, fileref}, 1)
+	error({"Unknown symbol.", {t = 0, value = buf[curposreal], position = tokPos}, fileref = fileref}, 1)
 end
 
 return Lexer
