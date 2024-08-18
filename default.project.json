@@ -5,7 +5,8 @@
 
     "ReplicatedStorage": {
       "Shared": {
-        "$path": "src/shared"
+        "$path": "src/shared",
+        "$className": "Folder"
       },
       "Packages": {
         "$path": "Packages"
@@ -27,10 +28,6 @@
     },
 
     "Workspace": {
-      "LuauScript": {
-        "$path": "src/LuauScript"
-      },
-
       "$properties": {
         "FilteringEnabled": true
       },

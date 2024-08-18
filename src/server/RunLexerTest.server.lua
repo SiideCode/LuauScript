@@ -1,3 +1,5 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local execStart = os.time()
 
 local testScript = [[
@@ -38,7 +40,7 @@ class Greeting
     print(L);
 }]]
 
-local lexerModule = require(workspace.LuauScript.AST.Lexer)
+local lexerModule = require(ReplicatedStorage.Shared.LuauScript.AST.Lexer)
 
 -------------------------------------------------------------------------------------------
 
@@ -62,7 +64,7 @@ local hhh = function()
 				end
 			end
 
--- don't ask me about the xpcall
+-- xpcall sometimes returns weird ass errors. i REALLY need the value return handling.
 --xpcall(
 	hhh()--,
 

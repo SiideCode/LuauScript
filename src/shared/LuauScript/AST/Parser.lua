@@ -1,10 +1,27 @@
---!strict
+--!nocheck
 local Lexer = require(script.Parent.Lexer)
 
 local Parser = {}
 Parser.__index = Parser
 
 local lexr = Lexer.new();
+
+export type Dot =
+{
+    position:Position
+}
+
+export type OrT =
+{
+    orType:{IdentUnit},
+    orPos:Position
+}
+
+export type OptT =
+{
+    isOptional:boolean,
+    position:Position
+}
 
 export type Position =
 {
@@ -21,26 +38,31 @@ export type Module =
     package:PackageDecl?,
     imports:{ImportDecl}?,
     -- type name resolves a conflict with roblox's global Enum type
-    enums:{ASTEnum}?,
+    enums:{Enum}?,
     structs:{Struct}?,
     classes:{Class}?,
     functions:{Function}?
 }
 
-export type Dot =
+export type Enum =
 {
-    position:Position
+    name:string,
+    --abstracts are comptime-only. basically every occurance is inlined.
+    isAbstract:boolean
 }
 
-export type OrT =
+export type Struct =
 {
-    orType:{TypeUnit},
-    orPos:Position
+    name:string,
+    -- Property should be a variable with get/set functions
+    fields:{Function|Variable|Property},
+    namePosition:Position,
+    declPosition:Position
 }
 
-export type OptT =
+export type ImportDecl =
 {
-    isOptional:boolean,
+    identUnits:{IdentUnit},
     position:Position
 }
 
@@ -50,21 +72,21 @@ export type IdentUnit =
     orType:OrT?,
     optionalT:OptT?,
     unitVal:string,
-    -- it can be either a type, or a field.
+    -- it can be either a type, or a path, because ALL identUnits vars would've held IdentUnit|TIdentUnit, instead of IdentUnit.
     isType:boolean,
     position:Position
 }
 
 export type PackageDecl =
 {
-    typeUnits:{IdentUnit},
+    identUnits:{IdentUnit},
     position:Position
 }
 
 export type FunctionArg =
 {
     name:string,
-    typeUnits:{TypeIdentUnit},
+    identUnits:{IdentUnit},
     colomnPos:Position,
     position:Position
 }
@@ -74,7 +96,8 @@ export type Function =
     name:string,
     arguments:{FunctionArg}?,
     codeBlock:{},
-    declarationPos:Position
+    namePosition:Position,
+    declPosition:Position
 }
 
 --[[

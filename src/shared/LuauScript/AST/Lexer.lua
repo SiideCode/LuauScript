@@ -1,4 +1,4 @@
---!strict
+--!nocheck
 local Lexer = {}
 Lexer.__index = Lexer
 
@@ -46,7 +46,7 @@ local tokProt =
 {
 	"unknown",							-- unknown symbol
 	"eof",								-- EOF
-	"tab",								-- tabulation
+	"tab",								-- identation
 	"newlineReturn",					-- carriage return and new line
 	"newline",							-- new line or carriage return
 	-- TODO: add binary numbers
@@ -57,7 +57,7 @@ local tokProt =
 	"peFloat",							-- floating point exponent no whole part
 	"eFloat",							-- floating point exponent
 	"intInt",							-- integer interval
-	"commentContent",					-- single line comment contents
+	"commentContent",					-- comment contents
 	"comment",							-- single line comment start, the end is marked with a newline/newlineReturn (LF/CRLF) token
 	"unaryPlus",						-- unary +1
 	"unaryMinus",						-- unary -1
@@ -114,7 +114,6 @@ local tokProt =
 	"nullCoal",							-- null coalescing (https://www.tutorialspoint.com/What-is-a-null-coalescing-operator-in-JavaScript)
 	"questionOp",						-- question mark
 	"atMacro",							-- at (macros)
-	"multiComContent",					-- multiline comment
 	"multiCom",							-- multiline comment start/end
 	"str",								-- start/end string ("")
 	"fStr",								-- start/end formatted string ('')
@@ -140,7 +139,10 @@ local tokProt =
 	"kvImplements",						-- interface implementation keyword
 	"kvExtern",							-- extern keyword (https://haxe.org/manual/lf-externs.html)
 	"kvGlobal",							-- global modifier
-	"kvLocal",							-- local modifier
+	"kvPrivate",						-- private modifier
+	"kvPublic",							-- public modifier
+	"kvStatic",							-- static modifier
+	"kvInline",							-- inline.
 	"kvOverride",						-- override modifier, overloads the function
 	"kvDynamic",						-- dynamic access to a variable i guess
 	"kvInline",							-- inline keyword
@@ -148,7 +150,7 @@ local tokProt =
 	"kvConst",							-- constant (might get unused, cause it can only be emulated)
 	"kvOperator",						-- operator function modifier keyword
 	"kvOverload",						-- overloading keyword
-	"kvFunc",							-- function keyword
+	"kvFunction",						-- function keyword
 	"kvVar",							-- variable keyword
 	"kvNull",							-- null
 	"kvTrue",							-- true
@@ -178,20 +180,19 @@ local tokProt =
 	"identMacro"						-- rust-like macro_funcion! identifier
 }
 
-local fakei = 0
+local putIndex = 0
 
 for i = 1, #tokProt, 1 do
-	table.insert(Lexer.tokTMirror, fakei, tokProt[i]);
-	fakei += 1
+	table.insert(Lexer.tokTMirror, putIndex, tokProt[i]);
+	putIndex += 1
 end
 
---be sure to let the GC dispose of temps to reduce resource usage slightly :)
-fakei = nil
+putIndex = nil
 tokProt = nil
 
 Lexer.tokT = TableUtil.DictUtil.mirrorDictionary(Lexer.tokTMirror)
 
---List of reserved keywords. TODO: consider keyword alias support, will be useful to not instantly introduce breaking changes if i change my mind about keywords during non-stable development phase.
+--List of reserved keywords. TODO: consider keyword alias support, will be useful to not instantly introduce breaking changes if i change my mind about keywords during non-stable development phase, OR for haxe compatability.
 local resKeywords =
 {
 	"package",
@@ -206,7 +207,10 @@ local resKeywords =
 	"extends",
 	"implements",
 	"global",
-	"local",
+	"private",
+	"static",
+	"public",
+	"inline",
 	"override",
 	"dynamic",
 	"inline",
@@ -214,7 +218,7 @@ local resKeywords =
 	"const",
 	"operator",
 	"overload",
-	"func",
+	"function",
 	"var",
 	"null",
 	"true",
@@ -276,22 +280,27 @@ local function readCommentBeginEnd()
 	lexerState = returnToState
 	print("state:", lexerState, "state to return:", returnToState)
 
-	local comm = ""
 	tokPos.startPos = curpos
 	tokPos.endPos = curpos
 
 	if buf[curposreal] == "/" then
+		tokPos.endPos += 1
 		if buf[curposreal+1] == "/" then
-			tokPos.endPos += 2
-			return {t = Lexer.tokT.com, value = nil, position = tokPos}
+			tokPos.endPos += 1
+			return {t = Lexer.tokT.comment, value = nil, position = tokPos}
 		elseif buf[curposreal+1] == "*" then
-
+			tokPos.endPos += 1
+			return {t = Lexer.tokT.multiCom, value = nil, position = tokPos}
 		end
 	elseif buf[curposreal] == "*" then
+		tokPos.endPos += 1
 		if buf[curposreal+1] == "/" then
-			
+			tokPos.endPos += 1
+			return {t = Lexer.tokT.multiCom, value = nil, position = tokPos}
 		end
 	end
+
+	return {msg = "An unknown lexing error has occured", lastToken = {t = Lexer.tokT.multiCom, value = nil, position = tokPos}, fileref}
 end
 
 local function readStringQuote()
@@ -330,7 +339,7 @@ local function stringEscapeRead()
 		curposreal += 1
 		curpos += 1
 	else
-		error("A STRING ESCAPE ERROR OCCURED! PLEASE SEND THIS TO THE DEVELOPER!")
+		error("A STRING ESCAPE ERROR OCCURED!")
 	end
 
 	if buf[curposreal] == "r" or buf[curposreal] == "n" or buf[curposreal] == "t"
