@@ -2,7 +2,7 @@
 
 ## Info
 
-LuauScript is an interpreted language in very early stages of development with a work-in-progress compiler, and in the future (when byte buffer gets out of studio beta) a VM written in Luau for Roblox.
+LuauScript is an interpreted language in very early stages of development with a work-in-progress compiler, and in the future a VM, written in Luau for Roblox.
 
 The language is inspired by  Haxe/ActionScript, Lua/Luau, Rust, and very slightly by Zig and Go, made for Roblox experiences to be user-moddable, allowing users to create content for your game and be creative.
 
