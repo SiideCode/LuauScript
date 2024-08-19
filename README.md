@@ -16,9 +16,6 @@ It is currently planned for it to be able to be compiled entirely before executi
 - VM: not started
 - Luau Transpiler: not started
 
-## How to include in your rojo project (WIP)
+## How to include in your rojo project
 
-1. get [Rojo](https://rojo.space)
-2. get [Wally](https://wally.run)
-3. run "wally install *package-name*"
-4. done.
+not yet.
