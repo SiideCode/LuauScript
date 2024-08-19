@@ -10,8 +10,8 @@ It is currently planned for it to be able to be compiled entirely before executi
 
 ## Main modules completion (in order of priority)
 
-- Lexer: 80-ish%
-- Parser: <1%
+- Lexer: 90-ish%
+- Parser: i don't even know
 - Bytecode Compiler: not started
 - VM: not started
 - Luau Transpiler: not started
