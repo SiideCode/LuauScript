@@ -96,7 +96,7 @@ local tokProt =
 	"comma",							-- comma
 	"dot",								-- dot
 	"qmarkDot",							-- question mark + dot (https://bobbyhadz.com/blog/tscript-question-mark-dot)
-	"mod",								-- module
+	"mod",								-- module (math)
 	"bitAnd",							-- bitwise and
 	"bitOr",							-- bitwise or
 	"bitXor",							-- bitwise XOR
@@ -113,7 +113,7 @@ local tokProt =
 	"brakClose",						-- close brackets
 	"nullCoal",							-- null coalescing (https://www.tutorialspoint.com/What-is-a-null-coalescing-operator-in-JavaScript)
 	"questionOp",						-- question mark
-	"atMacro",							-- at (macros)
+	"atMacro",							-- at (for haxe-style macros)
 	"multiCom",							-- multiline comment start/end
 	"str",								-- start/end string ("")
 	"fStr",								-- start/end formatted string ('')
@@ -133,7 +133,8 @@ local tokProt =
 	"kvInterface",						-- interface keyword
 	"kvEnum",							-- enum keyword
 	"kvAbstract",						-- abstract type/class/enum modifier keyword (https://haxe.org/manual/ts-abstract.html) (https://haxe.org/manual/ts-abstract-class.html)
-	"kvType",							-- type declaration keyword, only useful for type alias declarations (works like haxe's typedef, but you can't declare structs like this)
+	"kvType",							-- only useful for type alias declarations, like in Rust
+	"kvStructural",						-- tells the type system, that the typechecker will structurally check the type, instead of checking their signature (type path).
 	"kvStruct",							-- struct declaration keyword. it's only there cause i LOVE the struct keyword for some reason. type and struct separation is rust-like at it's core now, and i love it, even tho i don't really like rust
 	"kvExtends",						-- class extension keyword
 	"kvImplements",						-- interface implementation keyword
@@ -203,6 +204,7 @@ local resKeywords =
 	"enum",
 	"abstract",
 	"type",
+	"structural",
 	"struct",
 	"extends",
 	"implements",

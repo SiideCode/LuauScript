@@ -12,7 +12,7 @@ It's also planned to make a transpiler for it in the future, to make it usable i
 
 ## Main modules completion (in order of priority)
 
-- Lexer: 90-ish%
+- Lexer: 85-ish%
 - Parser: i don't even know
 - Bytecode Compiler: not started
 - VM: not started

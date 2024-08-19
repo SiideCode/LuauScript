@@ -76,3 +76,5 @@ TODO: docgen for the build tools, VM, and everything else like this.
 TODO: docgen for the language API (eventually).
 
 TODO: some simple demo projects, game integration examples, all that kind of stuff.
+
+Possibly nominal typing with an option for structural typing? (idea taken from https://github.com/Draco-lang/Language-suggestions/issues/17)
