@@ -4,9 +4,11 @@
 
 LuauScript is an interpreted language in very early stages of development with a work-in-progress compiler, and in the future (when byte buffer gets out of studio beta) a VM written in Luau for Roblox.
 
-The language is inspired by  Haxe/ActionScript, Lua/Luau, Rust, and very slightly by Zig and Go.
+The language is inspired by  Haxe/ActionScript, Lua/Luau, Rust, and very slightly by Zig and Go, made for Roblox experiences to be user-moddable, allowing users to create content for your game and be creative.
 
-It is currently planned for it to be able to be compiled entirely before execution or compiled right before the execution, both for Roblox experience modding. It is also planned to make it transpile into Luau, but it's currently low priority, because it's mainly made for roblox game modding.
+It is currently planned for it to be able to be built entirely before execution (like java), or for each script to be built right before use (kinda like python/lua/js), if needed. 
+
+It is also planned to make it transpile into Luau, but it's currently low priority, because it's mainly made for roblox game modding.
 
 ## Main modules completion (in order of priority)
 
