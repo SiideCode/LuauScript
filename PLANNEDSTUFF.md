@@ -25,13 +25,16 @@ struct struct_name =
 }
 ```
 
-## Preprocessor
+## Preprocessor & Macro
 
-preprocessor will allow rust-style **macro_func_name!()** macro functions.
+They will allow rust-style **macro_func_name!()** macro functions.
 
-for conditional compilation preprocessor will allow rust-style **config!()** macro for inlining into methods, OR **@:config()** metadata for each affected field, but **#if**, **#else**, **#elseif**, and **#end** should remain for those who need them, even though they're a bit harder to read when there's multiple of them, so they create all that awful spaghetti stuff in situations with more complex conditions.
+To ommit code, according to a condition, they will allow rust-style **config!()** macro for inlining into methods, OR **@:config()** metadata for each affected field, but **#if**, **#else**, **#elseif**, and **#end** should remain for those who need them, or situations in which it makes more sense to use them, even though they create awful spaghetti in situations with complex conditions.
 
-both **@:config()** metadata and **config!()** macro will accept an expression, that will be evaluated in an enviroment, where all config attributes are reachable and valid, and it should be validated by the future language server too, if it ever comes out.
+Preprocessing is evaluated before the lexing step, processes everything that starts with a #, and some of the metadata.
+Macros are evaluated before the parsing step, processes everything else.
+
+Both **@:config()** metadata and **config!()** macro will accept an expression, that will be evaluated in an enviroment, where all config attributes are reachable and valid, and it should be validated by the future language server too (if it ever gets done lol).
 
 Examples:
 
@@ -56,16 +59,20 @@ function someFunction()
 }
 ```
 
-The metadata one is a bit more verbose than rust's function-like syntax for that, but is a a lot nicer to read in my opinion, because you don't have to mentally switch from evaluating comparison statements to evaluating this function-like compile-time comparison thing.
+The metadata one is a bit more verbose than rust's function-like macros, but is a a lot nicer to read in my opinion, because you don't have to mentally switch from evaluating comparison statements to evaluating this function-like compile-time weird comparison thing.
 
 ## Recommended formatting
 
 1 new line between stuff like functions
 camelCase for functions and variables, although snake_case is not prohibited, kebab-case too (UNLIKE LUA)
-PascalCase for type and class names
-UPPERCASE_SNAKE_CASE for constants
+PascalCase for type and class names, although camelCase, snake_case, and kebab-case is supported, although it's recommended to have them start with an uppercase
+UPPERCASE_SNAKE_CASE for constants, but it's just a recommendation
 4 spaces for nested lines (2 spaces look awful)
 
 ## Unsorted little things
 
-TODO: docgen.
+TODO: docgen for the build tools, VM, and everything else like this.
+
+TODO: docgen for the language API (eventually).
+
+TODO: some simple demo projects, game integration examples, all that kind of stuff.

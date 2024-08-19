@@ -6,113 +6,33 @@ Parser.__index = Parser
 
 local lexr = Lexer.new();
 
-export type Dot =
+type Module =
 {
-    position:Position
-}
-
-export type OrT =
-{
-    orType:{IdentUnit},
-    orPos:Position
-}
-
-export type OptT =
-{
-    isOptional:boolean,
-    position:Position
-}
-
-export type Position =
-{
-    startLine:number,
-    endline:number,
-
-    startSym:number,
-    endSym:number,
-}
-
-export type Module =
-{
-    fileName:string,
-    package:PackageDecl?,
-    imports:{ImportDecl}?,
-    -- type name resolves a conflict with roblox's global Enum type
-    enums:{Enum}?,
-    structs:{Struct}?,
-    classes:{Class}?,
-    functions:{Function}?
-}
-
-export type Enum =
-{
+    --Module name
     name:string,
-    --abstracts are comptime-only. basically every occurance is inlined.
-    isAbstract:boolean
+    mainDef:BaseT,
+    subDef:BaseT
 }
 
-export type Struct =
+type BaseT =
 {
-    name:string,
-    -- Property should be a variable with get/set functions
-    fields:{Function|Variable|Property},
-    namePosition:Position,
-    declPosition:Position
-}
 
-export type ImportDecl =
-{
-    identUnits:{IdentUnit},
-    position:Position
-}
-
-export type IdentUnit =
-{
-    dot:Dot?,
-    orType:OrT?,
-    optionalT:OptT?,
-    unitVal:string,
-    -- it can be either a type, or a path, because ALL identUnits vars would've held IdentUnit|TIdentUnit, instead of IdentUnit.
-    isType:boolean,
-    position:Position
-}
-
-export type PackageDecl =
-{
-    identUnits:{IdentUnit},
-    position:Position
-}
-
-export type FunctionArg =
-{
-    name:string,
-    identUnits:{IdentUnit},
-    colomnPos:Position,
-    position:Position
-}
-
-export type Function =
-{
-    name:string,
-    arguments:{FunctionArg}?,
-    codeBlock:{},
-    namePosition:Position,
-    declPosition:Position
 }
 
 --[[
-Current goals:
-- make a syntax tree that is NOT complicated, and takes only the most important info from tokens, all of the tokens are ommitted from the AST.
+    Current goals:
+    - make a syntax tree that is NOT complicated, and takes only the most important info from tokens (unlike some ASTs that literally include all of the node-related tokens), all of the tokens are ommitted from the AST.
 ]]
 
---TODO: make incremental parsing work. lexing doesn't take much, so compare 2 lexer outputs, and change the AST based on that?
-local incrMode = true
-
+--[[
+    TODO: make incremental parsing work. lexing doesn't take much, so compare 2 lexer outputs, and change the AST based on that?
+    luau is a pretty "heavy" environment in terms of resource consumption, so this might be useful, also faster build times are always a good thing
+]]
 function Parser.new(incrementalMode:boolean?)
     local instance = setmetatable({}, Parser)
 
     if incrementalMode then
-        incrMode = incrementalMode
+        instance.incrMode = incrementalMode
     end
 
     return instance
