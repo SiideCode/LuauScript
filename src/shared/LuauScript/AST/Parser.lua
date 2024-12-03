@@ -10,13 +10,52 @@ type Module =
 {
     --Module name
     name:string,
-    mainDef:BaseT,
-    subDef:BaseT
+    --Package of the module
+    package:{string},
+    --Types that a module contains
+    types:{ClassT},
+    --Global variables of this module
+    globals:{}
 }
 
 type BaseT =
 {
+    --Type name
+    name:string,
+    --Position of the type defenition
+    pos:Lexer.Position,
+    --Package of the type
+    package:{string},
+    --Reference to a module that contains this type
+    module:Module,
+    --Whether or not this type is an extern
+    isExtern:boolean,
+    --Whether or not this type is private
+    isPrivate:boolean,
+    --Type parameters that this type accepts
+    tParams:{TypeParameters}?,
+    --Metadate associated with the type
+    meta:{Metadata},
+    --Documentation, associated with the field
+    doc:string?
+}
 
+type ClassT = BaseT & {
+    
+}
+
+type TypeParameters =
+{
+    t:Type,
+    name:string,
+    defaultT:Type?
+}
+
+type Metadata =
+{
+    pos:Lexer.Position,
+    name:string,
+    params:{Expression}?
 }
 
 --[[

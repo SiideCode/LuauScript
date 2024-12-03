@@ -126,6 +126,7 @@ local tokProt =
 	"hashtag",							-- i forgot why it exists.
 	"dollar",							-- dollar for something
 	--keywords
+	-- NOTE: might get rid of this one
 	"kvPackage",						-- module path declaration keyword
 	"kvImport",							-- module import keyword
 	"kvUsing",							-- using (https://haxe.org/manual/lf-static-extension.html)
@@ -148,7 +149,7 @@ local tokProt =
 	"kvDynamic",						-- dynamic access to a variable i guess
 	"kvInline",							-- inline keyword
 	"kvMacro",							-- macro class/func/var/whatever modifier.
-	"kvConst",							-- constant (might get unused, cause it can only be emulated)
+	"kvVal",							-- constant value keyword
 	"kvOperator",						-- operator function modifier keyword
 	"kvOverload",						-- overloading keyword
 	"kvFunction",						-- function keyword
@@ -204,6 +205,9 @@ local resKeywords =
 	"enum",
 	"abstract",
 	"type",
+	-- This keyword is long for a reason, however idk if it even has a good purpose, cause interfaces exist
+	-- HOWEVER it technically allows structs to be used as interfaces lol
+	-- and classes too
 	"structural",
 	"struct",
 	"extends",
@@ -217,7 +221,7 @@ local resKeywords =
 	"dynamic",
 	"inline",
 	"macro",
-	"const",
+	"val",
 	"operator",
 	"overload",
 	"function",
@@ -305,6 +309,22 @@ local function readCommentBeginEnd()
 	return {msg = "An unknown lexing error has occured", lastToken = {t = Lexer.tokT.multiCom, value = nil, position = tokPos}, fileref}
 end
 
+local function readComment()
+	lexerState = returnToState
+	print("state:", lexerState, "state to return:", returnToState)
+
+	tokPos.startPos = curpos
+	tokPos.endPos = curpos
+
+	local ret = ""
+
+	repeat
+		ret += buf[curposreal]
+		curposreal += 1
+		tokPos.endPos += 1
+	until buf[curposreal] == "\n"
+end
+
 local function readStringQuote()
 	lexerState = returnToState
 	print("state:", lexerState, "state to return:", returnToState)
@@ -387,6 +407,7 @@ local function stringEscapeRead()
 			curpos += poo
 			tokPos.endPos += poo - 1
 		else
+			-- TODO: convert to return
 			error({msg = "Invalid string escape.", lastToken = {t = Lexer.tokT.strEscape, value = tokContent, position = tokPos}, fileRef = fileref}, 1)
 		end
 	elseif buf[curposreal] == "u" and buf[curposreal+1] ~= "{" then
@@ -408,6 +429,7 @@ local function stringEscapeRead()
 			curpos += poo
 			tokPos.endPos += poo - 1
 		else
+			-- TODO: convert to return
 			error({msg = "Invalid string escape.", lastToken = {t = Lexer.tokT.strEscape, value = tokContent, position = tokPos}, fileRef = fileref}, 1)
 		end
 	elseif buf[curposreal] == "u" and buf[curposreal+1] == "{" then
@@ -436,12 +458,15 @@ local function stringEscapeRead()
 				curposreal += poo
 				curpos += poo
 				tokPos.endPos += poo - 1
+				-- TODO: convert to return
 				error({msg = "Invalid string escape.", lastToken = {t = Lexer.tokT.strEscape, value = tokContent, position = tokPos}, fileRef = fileref}, 1)
 			end
 		else
+			-- TODO: convert to return
 			error({msg = "Invalid string escape.", lastToken = {t = Lexer.tokT.strEscape, value = tokContent, position = tokPos}, fileRef = fileref}, 1)
 		end
 	else
+		-- TODO: convert to return
 		error({msg = "Invalid string escape.", lastToken = {t = Lexer.tokT.strEscape, value = tokContent, position = tokPos}, fileRef = fileref}, 1)
 	end
 
@@ -462,6 +487,7 @@ local function readFStringDollar()
 			lel ..= buf[curposreal]
 		end
 	else
+		-- TODO: convert to return
 		error({msg = "Nothing to format", lastToken = {t = Lexer.tokT.fStrDollarContent, value = lel, position = tokPos}, 1})
 	end
 	return {t = Lexer.tokT.fStrDollarContent, value = lel, position = tokPos}
@@ -483,6 +509,7 @@ local function stringRead()
 			tokPos.endPos += 1
 			print(tokPos)
 			if curposreal == #buf then
+				-- TODO: convert to return
 				error({msg = "Unclosed string.", lastToken = {Lexer.tokT.strLetters, tokContent, tokPos}, fileRef = fileref}, 1)
 			end
 		end
@@ -577,6 +604,9 @@ function Lexer:resetState()
 	lexerState = 1
 end
 
+--[[
+	Basically an iterator function
+]]
 function Lexer:nextToken()
 	tokPos = {startPos = 0, line = 0, endPos = 0}
 
@@ -594,12 +624,13 @@ function Lexer:nextToken()
 		elseif lexerState == lexerStates.readCommentBeginEnd then
 			return readCommentBeginEnd();
 		elseif lexerState == lexerStates.readComment then
-			error("UNIMPLEMENTED")
+			return readComment()
 		elseif lexerState == lexerStates.readMultiCommentStart then
-			return 
+			return
 		elseif lexerState == lexerStates.readMultiCommentEnd then
-			return 
+			return
 		elseif lexerState == lexerStates.readMultiComment then
+			-- TODO: convert to return
 			error("UNIMPLEMENTED")
 		elseif lexerState == lexerStates.returnNewlineTok then
 			return doNewlineCheck()
@@ -626,16 +657,17 @@ function Lexer:nextToken()
 		return apossiblenewline
 	end
 
+	-- TODO: check if this even works with macro functions
 	if buf[curposreal]:find("[_%a]") then
 		local somethingStr = ""
 		tokPos.startPos = curpos
 
-		while buf[curposreal]:find("[_%a%d]") do
+		while buf[curposreal]:find("[_%a%d!]") do
 			somethingStr ..= buf[curposreal]
 			proceed()
 		end
 
-		if buf[curposreal] == "!" then
+		if buf[curposreal] == "" then
 			somethingStr ..= buf[curposreal]
 			proceed()
 		end
@@ -649,37 +681,37 @@ function Lexer:nextToken()
 			end
 		end
 
+		-- TODO: merge ident and identT, HERE WE DON'T DICTATE HOW YOU SHOULD WRITE YOUR TYPE NAMES!!!
 		if somethingStr:sub(1):find("[_%l%u]") then
 			local strposreal = 0
-			local strpos = 0
 			local beef = somethingStr:split("")
 
-			strpos += 2
-			strposreal += 2
+			strposreal += 1
 
 			while beef[1] == "_" do
-				strpos += 1
 				strposreal += 1
 			end
 
+			local tea = Lexer.tokT.ident
+
 			if beef[strposreal]:find("[%l%d]") then
+				-- TODO: this condition might be a little bit too excessive
 				while beef[strposreal] ~= "" and beef[strposreal] ~= nil and beef[strposreal] do
-					strpos += 1
 					strposreal += 1
 				end
 				if beef[strposreal] == "!" then
-					strpos += 1
 					strposreal += 1
 				end
-				return {t = Lexer.tokT.ident, value = somethingStr, position = tokPos}
-			elseif beef[strposreal]:find("%u") then
+			elseif beef[strposreal]:find("[%u]") then
 				while beef[strposreal] ~= "" and beef[strposreal] ~= nil and beef[strposreal] do
-					beef[strposreal] = beef[strposreal]
-					strpos += 1
 					strposreal += 1
 				end
-				return {t = Lexer.tokT.identT, value = somethingStr, position = tokPos}
+				tea = Lexer.tokT.identT
+			else
+				-- TODO: give out an error if neccessary? idk, it's like 1am, my brain isn't braining
 			end
+
+			return {t = tea, value = somethingStr, position = tokPos}
 		end
 	elseif buf[curposreal]:find("%d") then
 		local someth = ""
@@ -855,6 +887,7 @@ function Lexer:nextToken()
 			proceed(2)
 			while true do
 				if curposreal > #buf then
+					-- TODO: convert to return
 					error({msg = "Unclosed multiline comment.", lastToken = {t = Lexer.tokT.multiCom, value = maythegodhelpme, position = tokPos}, fileRef = fileref}, 1)
 				elseif buf[curposreal] == "*" and buf[curposreal+1] == "/" then
 					print(maythegodhelpme)
@@ -1011,8 +1044,10 @@ function Lexer:nextToken()
 			proceed(2)
 			local aaal = "~/"
 			print(buf[curposreal])
+			-- the regexp here SCARES me.
 			while buf[curposreal] ~= "/" and buf[curposreal]:find("[%a%d\\r\\n\\t\r\n%$%.%*%+%-%^%?%[%]%(%)|{}]") do
 				if curposreal >= #buf then
+					-- TODO: convert to return
 					error({msg = "Unclosed regexp.", lastToken = {t = Lexer.tokT.regexp, value = aaal, position = tokPos}, fileRef = fileref}, 1)
 				end
 				if buf[curposreal] ~= "/" and buf[curposreal]:find("[%a%d\\r\\n\\t%$%.%*%+%-%^%?%[%]%(%)|{}]") then
@@ -1021,11 +1056,13 @@ function Lexer:nextToken()
 					print(aaal)
 					print(buf[curposreal])
 				elseif buf[curposreal] == "\r" or buf[curposreal] == "\n" then
+					-- TODO: convert to return
 					error({msg = "Unclosed regexp.", lastToken = {t = Lexer.tokT.regexp, value = aaal, position = tokPos}, fileRef = fileref}, 1)
 				end
 			end
 
 			if curposreal >= #buf then
+				-- TODO: convert to return
 				error({msg = "Unclosed regexp.", lastToken = {t = Lexer.tokT.regexp, value = aaal, position = tokPos}, fileRef = fileref}, 1)
 			end
 
@@ -1049,6 +1086,7 @@ function Lexer:nextToken()
 			return {t = Lexer.tokT.bitNot, value = nil, position = tokPos}
 		end
 	end
+	-- TODO: convert to return, also swap out for an "unknown token" error (make it read till a whitespace is encountered and only then throw an error)
 	error({"Unknown symbol.", {t = 0, value = buf[curposreal], position = tokPos}, fileref = fileref}, 1)
 end
 

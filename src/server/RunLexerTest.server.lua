@@ -2,7 +2,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local execStart = os.time()
 
-local testScript = [[
+local testScript = --[[
 package;
 
 class Main
@@ -10,35 +10,36 @@ class Main
 	var hey = "hiya\n\r\n\n\u{12345f}\u12ff\123\xff";
 }
 ]]
---[[
-// oval
-/*
-boval
-*/
-package src_al.cac;
+		[[
+			// oval
+			/*
+			boval
+			*/
+			package src_al.cac;
 
-import heya.iam.Bob;
+			import heya.iam.Bob;
 
-class Greeting
-{
-	var aa = 0x32ba;
-    var M:Int = 34;
-    var H:Float = 34.5;
-    var L:String = "elo";
-    var regexp = ~/[A-Z]/i;
+			class Greeting
+			{
+				var aa = 0x32ba;
+				var M:Int = 34;
+				var H:Float = 34.5;
+				var L:String = "elo";
+				var regexp = ~/[A-Z]/i;
 
-    H += 2;
+				H += 2;
 
-    H >>= 3;
+				H >>= 3;
 
-    H *= 2;
+				H *= 2;
 
-    H = H / 2;
+				H = H / 2;
 
-	H /= 2;
+				H /= 2;
 
-    print(L);
-}]]
+				print(L);
+			}
+		]]
 
 local lexerModule = require(ReplicatedStorage.Shared.LuauScript.AST.Lexer)
 
@@ -58,23 +59,14 @@ local hhh = function()
 					table.insert(toks, a)
 					print(a, lexerModule.tokTMirror[a.t])
 					print(toks)
+					print(lexerModule.tokTMirror)
 				end
 				if a.t == lexerModule.tokT.eof then
 					print(a.t)
 				end
 			end
 
--- xpcall sometimes returns weird ass errors. i REALLY need the value return handling.
---xpcall(
-	hhh()--,
-
-	--[[function(lel:any)
-		if type(lel) == "table" then
-			print(table:unpack(lel))
-		elseif lel ~= nil then
-			print(lel)
-		end
-	end)]]
+hhh()
 
 -------------------------------------------------------------------------------------------
 
