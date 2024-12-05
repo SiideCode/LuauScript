@@ -54,6 +54,9 @@ local toks = {}
 local a = lexer:nextToken()
 table.insert(toks, a)
 
+-- The final flow should be:
+-- Do lexing -> do parsing -> typecheck (sort of like 2nd parsing stage, turns some expressions into typed expressions) -> compile -> execute
+-- Also I REALLY need to think about null safety, cause roblox is a VERY dynamic environment, and accessing a null is VERY easy
 local hhh = function()
 				while (a.t ~= lexerModule.tokT.eof) and (a.t ~= nil) do
 					a = lexer:nextToken()

@@ -1,3 +1,4 @@
+--!native
 --!nocheck
 local Lexer = {}
 Lexer.__index = Lexer
@@ -13,9 +14,9 @@ export type Position = {
 }
 
 export type Token = {
+	position:Position,
 	t:number,
-	value:string?,
-	position:Position
+	value:string?
 }
 
 export type LexerError = {
@@ -113,7 +114,7 @@ local tokProt =
 	"brakClose",						-- close brackets
 	"nullCoal",							-- null coalescing (https://www.tutorialspoint.com/What-is-a-null-coalescing-operator-in-JavaScript)
 	"questionOp",						-- question mark
-	"atMacro",							-- at (for haxe-style macros)
+	"atMacro",							-- at (for haxe-style metadata)
 	"multiCom",							-- multiline comment start/end
 	"str",								-- start/end string ("")
 	"fStr",								-- start/end formatted string ('')
@@ -126,8 +127,7 @@ local tokProt =
 	"hashtag",							-- i forgot why it exists.
 	"dollar",							-- dollar for something
 	--keywords
-	-- NOTE: might get rid of this one
-	"kvPackage",						-- module path declaration keyword
+	"kvPackage",						-- module package declaration keyword
 	"kvImport",							-- module import keyword
 	"kvUsing",							-- using (https://haxe.org/manual/lf-static-extension.html)
 	"kvClass",							-- class declaration keyword
@@ -135,7 +135,8 @@ local tokProt =
 	"kvEnum",							-- enum keyword
 	"kvAbstract",						-- abstract type/class/enum modifier keyword (https://haxe.org/manual/ts-abstract.html) (https://haxe.org/manual/ts-abstract-class.html)
 	"kvType",							-- only useful for type alias declarations, like in Rust
-	"kvStructural",						-- tells the type system, that the typechecker will structurally check the type, instead of checking their signature (type path).
+	-- TODO: think about that. it seems funny, cause it can do funny things (you can use structures as interfaces, or use already written classes as interfaces)
+	"kvStructural",						-- tells the type system, that the typechecker will structurally check the type, instead of checking their type signature (type path).
 	"kvStruct",							-- struct declaration keyword. it's only there cause i LOVE the struct keyword for some reason. type and struct separation is rust-like at it's core now, and i love it, even tho i don't really like rust
 	"kvExtends",						-- class extension keyword
 	"kvImplements",						-- interface implementation keyword
@@ -172,14 +173,12 @@ local tokProt =
 	"kvThrow",							-- throw an error
 	"kvTry",							-- try
 	"kvCatch",							-- catch
-	"kvUntyped",						-- suppress typechecker for the line entirely
-	"kvNew",							-- new() constructor
+	"kvUntyped",						-- suppress typechecker for the expression entirely
+	"kvNew",							-- new Class() constructor
 	"kvIn",								-- in for the for-loop
 	--TODO: decide on how to do casts (possibly allow C-style unsafe casts, or C++-style cast functions?)
 	"kvCast",							-- cast. read https://haxe.org/manual/expression-cast-unsafe.html and https://haxe.org/manual/expression-cast-safe.html
-	"ident",							-- packages and variables.
-	"identT",							-- classes and types
-	"identMacro"						-- rust-like macro_funcion! identifier
+	"ident"								-- identifier of a package, type, class, variable, literally anything else that can be accessed
 }
 
 local putIndex = 0
@@ -626,9 +625,11 @@ function Lexer:nextToken()
 		elseif lexerState == lexerStates.readComment then
 			return readComment()
 		elseif lexerState == lexerStates.readMultiCommentStart then
-			return
+			-- TODO: convert to return
+			error("UNIMPLEMENTED")
 		elseif lexerState == lexerStates.readMultiCommentEnd then
-			return
+			-- TODO: convert to return
+			error("UNIMPLEMENTED")
 		elseif lexerState == lexerStates.readMultiComment then
 			-- TODO: convert to return
 			error("UNIMPLEMENTED")
@@ -662,7 +663,7 @@ function Lexer:nextToken()
 		local somethingStr = ""
 		tokPos.startPos = curpos
 
-		while buf[curposreal]:find("[_%a%d!]") do
+		while buf[curposreal]:find("[_%a%d-]!*") do
 			somethingStr ..= buf[curposreal]
 			proceed()
 		end
@@ -683,32 +684,14 @@ function Lexer:nextToken()
 
 		-- TODO: merge ident and identT, HERE WE DON'T DICTATE HOW YOU SHOULD WRITE YOUR TYPE NAMES!!!
 		if somethingStr:sub(1):find("[_%l%u]") then
-			local strposreal = 0
-			local beef = somethingStr:split("")
+			local beef = somethingStr:sub(1)
 
-			strposreal += 1
+			local tea = nil
 
-			while beef[1] == "_" do
-				strposreal += 1
-			end
-
-			local tea = Lexer.tokT.ident
-
-			if beef[strposreal]:find("[%l%d]") then
-				-- TODO: this condition might be a little bit too excessive
-				while beef[strposreal] ~= "" and beef[strposreal] ~= nil and beef[strposreal] do
-					strposreal += 1
-				end
-				if beef[strposreal] == "!" then
-					strposreal += 1
-				end
-			elseif beef[strposreal]:find("[%u]") then
-				while beef[strposreal] ~= "" and beef[strposreal] ~= nil and beef[strposreal] do
-					strposreal += 1
-				end
-				tea = Lexer.tokT.identT
+			if beef:find("[_%l%u]") then
+				tea = Lexer.tokT.ident
 			else
-				-- TODO: give out an error if neccessary? idk, it's like 1am, my brain isn't braining
+				-- TODO: throw an error
 			end
 
 			return {t = tea, value = somethingStr, position = tokPos}
@@ -717,7 +700,7 @@ function Lexer:nextToken()
 		local someth = ""
 		local isfloat = false
 		local ishex = false
-		local hasexponent = false
+		local hase = false
 		tokPos.startPos = curpos
 		while buf[curposreal]:find("[%.%dx%xe]") do
 			print(someth)
@@ -733,17 +716,17 @@ function Lexer:nextToken()
 				someth ..= buf[curposreal]
 				proceed()
 				ishex = true
-			elseif buf[curposreal] == "e" and hasexponent == false then
+			elseif buf[curposreal] == "e" and hase == false then
 				someth ..= buf[curposreal]
 				proceed()
-				hasexponent = true
+				hase = true
 			end
 		end
 
 		tokPos.endPos = curpos
 
 		if isfloat then
-			if hasexponent then
+			if hase then
 				if someth:sub(1,1) == "." then
 					return {t = Lexer.tokT.peFloat, value = someth, position = tokPos}
 				else
