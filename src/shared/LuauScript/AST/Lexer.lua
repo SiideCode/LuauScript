@@ -146,13 +146,13 @@ local tokProt =
 	"kvPublic",							-- public modifier
 	"kvStatic",							-- static modifier
 	"kvInline",							-- inline.
-	"kvOverride",						-- override modifier, overloads the function
+	"kvOverride",						-- override modifier, overrides the function
 	"kvDynamic",						-- dynamic access to a variable i guess
 	"kvInline",							-- inline keyword
 	"kvMacro",							-- macro class/func/var/whatever modifier.
 	"kvVal",							-- constant value keyword
 	"kvOperator",						-- operator function modifier keyword
-	"kvOverload",						-- overloading keyword
+	"kvOverload",						-- function overload keyword
 	"kvFunction",						-- function keyword
 	"kvVar",							-- variable keyword
 	"kvNull",							-- null
@@ -257,17 +257,19 @@ local lexerStates =
 	readStringTwoQuotes = 2,
 	--like a readStringTwoQuotes, but with $ and ${} interpolation support. btw $$ is an escape for an actual dollar lol
 	readStringOneQuote = 3,
+	--reads the entire 
+	readCommentBeginEnd = 4,
 	--reads a single line comment, includes markdown and other stuff to support docs
-	readComment = 4,
+	readComment = 5,
 	--reads a multiline comment, includes markdown and other stuff to support docs
-	readMultiComment = 5,
+	readMultiComment = 6,
 	--just returns a newline if there's one, and that's it
-	returnNewlineTok = 6,
+	returnNewlineTok = 7,
 	--reads and returns a string escape
-	readStringEscape = 7,
+	readStringEscape = 8,
 	--reads and returns a quote of a string
-	readStringQuote = 8,
-	readFStringDollar = 9
+	readStringQuote = 9,
+	readFStringDollar = 10
 }
 
 local function proceed(amount:number?)
@@ -281,47 +283,93 @@ local function proceed(amount:number?)
 	end
 end
 
+local function doNewlineCheck(justCheck:boolean?, keepState:boolean?)
+	if (justCheck ~= true and keepState ~= true) then
+		lexerState = returnToState
+		print("state:", lexerState, "state to return:", returnToState)
+	end
+
+	if buf[curposreal] == "\n" or buf[curposreal] == "\r" then
+		if not justCheck then
+			tokPos.startPos = curpos
+		end
+
+		if buf[curposreal] == "\r" and buf[curposreal+1] == "\n" then
+			if not justCheck then
+				tokPos.endPos = curpos + 1
+				curline += 1
+				curpos = 2
+				curposreal += 2
+			end
+			return {t = Lexer.tokT.newlineReturn, value = nil, position = tokPos}
+		else
+			local whar = "\n"
+			if buf[curposreal] == "\r" then
+				whar = "\r"
+			end
+
+			if not justCheck then
+				tokPos.endPos = curpos
+				curline += 1
+				curpos = 1
+				curposreal += 1
+			end
+
+			return {t = Lexer.tokT.newline, value = whar, position = tokPos}
+		end
+	end
+	return nil
+end
+
 local function readCommentBeginEnd()
 	lexerState = returnToState
 	print("state:", lexerState, "state to return:", returnToState)
 
-	tokPos.startPos = curpos
-	tokPos.endPos = curpos
-
 	if buf[curposreal] == "/" then
-		tokPos.endPos += 1
+		tokPos.startPos = curpos
+		proceed()
 		if buf[curposreal+1] == "/" then
-			tokPos.endPos += 1
+			proceed(2)
+			lexerState = lexerStates.readComment
+			returnToState = lexerStates.readCommentBeginEnd
 			return {t = Lexer.tokT.comment, value = nil, position = tokPos}
 		elseif buf[curposreal+1] == "*" then
-			tokPos.endPos += 1
+			proceed(2)
+			lexerState = lexerStates.readMultiComment
+			returnToState = lexerStates.readCommentBeginEnd
 			return {t = Lexer.tokT.multiCom, value = nil, position = tokPos}
+		else
+			-- Error (invalid token)
 		end
 	elseif buf[curposreal] == "*" then
-		tokPos.endPos += 1
+		tokPos.startPos = curpos
+		proceed()
 		if buf[curposreal+1] == "/" then
 			tokPos.endPos += 1
+			lexerState = lexerStates.seekTokens
+			returnToState = lexerStates.seekTokens
 			return {t = Lexer.tokT.multiCom, value = nil, position = tokPos}
 		end
 	end
 
-	return {msg = "An unknown lexing error has occured", lastToken = {t = Lexer.tokT.multiCom, value = nil, position = tokPos}, fileref}
+	return {msg = "An unknown lexing error has occured in read", lastToken = {t = Lexer.tokT.multiCom, value = nil, position = tokPos}, fileref}
 end
 
 local function readComment()
-	lexerState = returnToState
-	print("state:", lexerState, "state to return:", returnToState)
+	if (lexerState == lexerStates.readMultiComment) then
 
-	tokPos.startPos = curpos
-	tokPos.endPos = curpos
+	else
+		local ret = ""
 
-	local ret = ""
+		repeat
+			ret += buf[curposreal]
+			curposreal += 1
+			tokPos.endPos += 1
+		until doNewlineCheck(true) ~= nil
 
-	repeat
-		ret += buf[curposreal]
-		curposreal += 1
-		tokPos.endPos += 1
-	until buf[curposreal] == "\n"
+		return {t = Lexer.tokT.commentContent, value = nil, position = tokPos}
+	end
+	return {msg = "An unknown lexer error has occured"}
 end
 
 local function readStringQuote()
@@ -500,7 +548,7 @@ local function stringRead()
 
 	--TODO: make all strings multilinable why did i not do that from the beginnign aiioWJF
 	if buf[curposreal] ~= "$" and lexerState ~= lexerStates.readStringOneQuote then
-		while buf[curposreal] ~= "\"" and (buf[curposreal] ~= "\n" or buf[curposreal] ~= "\r") and buf[curposreal] ~= "\\" do
+		while buf[curposreal] ~= "\"" and (doNewlineCheck(true) ~= nil) and buf[curposreal] ~= "\\" do
 			print(buf[curposreal])
 			tokContent ..= buf[curposreal]
 			curposreal += 1
@@ -514,7 +562,7 @@ local function stringRead()
 		end
 	end
 
-	if buf[curposreal] == "\n" or buf[curposreal] == "\r" then
+	if doNewlineCheck(true) ~= nil then
 		returnToState = lexerStates.readStringTwoQuotes
 		lexerState = lexerStates.returnNewlineTok
 	elseif buf[curposreal] == "\\" and tokContent == "" then
@@ -533,6 +581,7 @@ local function stringRead()
 		returnToState = lexerState
 		lexerState = lexerStates.readFStringDollar
 		return readFStringDollar(tokPos)
+	-- why is this here
 	elseif buf[curposreal] == "$" and lexerState == lexerStates.readStringOneQuote then
 		returnToState = lexerState
 		lexerState = lexerStates.readFStringDollar
@@ -545,35 +594,6 @@ local function stringRead()
 
 	print(buf[curposreal])
 	return {t = Lexer.tokT.strLetters, value = tokContent, position = tokPos}
-end
-
-local function doNewlineCheck()
-	lexerState = returnToState
-	print("state:", lexerState, "state to return:", returnToState)
-
-	if buf[curposreal] == "\n" or buf[curposreal] == "\r" then
-		tokPos.startPos = curpos
-		if buf[curposreal] == "\r" and buf[curposreal+1] == "\n" then
-			tokPos.endPos = curpos + 1
-			curline += 1
-			curpos = 2
-			curposreal += 2
-			return {t = Lexer.tokT.newlineReturn, value = nil, position = tokPos}
-		else
-			local whar = "\n"
-			if buf[curposreal-1] == "\r" then
-				whar = "\r"
-			end
-
-			tokPos.endPos = curpos
-			curline += 1
-			curpos = 1
-			curposreal += 1
-
-			return {t = Lexer.tokT.newline, value = whar, position = tokPos}
-		end
-	end
-	return nil
 end
 
 --[[
@@ -622,17 +642,8 @@ function Lexer:nextToken()
 			return stringEscapeRead()
 		elseif lexerState == lexerStates.readCommentBeginEnd then
 			return readCommentBeginEnd();
-		elseif lexerState == lexerStates.readComment then
+		elseif lexerState == lexerStates.readComment or lexerState == lexerStates.readMultiComment then
 			return readComment()
-		elseif lexerState == lexerStates.readMultiCommentStart then
-			-- TODO: convert to return
-			error("UNIMPLEMENTED")
-		elseif lexerState == lexerStates.readMultiCommentEnd then
-			-- TODO: convert to return
-			error("UNIMPLEMENTED")
-		elseif lexerState == lexerStates.readMultiComment then
-			-- TODO: convert to return
-			error("UNIMPLEMENTED")
 		elseif lexerState == lexerStates.returnNewlineTok then
 			return doNewlineCheck()
 		end
@@ -653,7 +664,7 @@ function Lexer:nextToken()
 		return {t = Lexer.tokT.tab, value = spacesntabs, position = tokPos}
 	end
 
-	local apossiblenewline = doNewlineCheck(tokPos)
+	local apossiblenewline = doNewlineCheck()
 	if apossiblenewline ~= nil then
 		return apossiblenewline
 	end
@@ -855,7 +866,7 @@ function Lexer:nextToken()
 		elseif buf[curposreal+1] == "/" then
 			proceed(2)
 			local maythegodhelpme = "//"
-			while buf[curposreal] ~= "\r" or buf[curposreal] ~= "\n" do
+			while doNewlineCheck(true) ~= nil do
 				maythegodhelpme ..= buf[curposreal]
 				proceed()
 				curline = 1
@@ -1038,7 +1049,7 @@ function Lexer:nextToken()
 					proceed()
 					print(aaal)
 					print(buf[curposreal])
-				elseif buf[curposreal] == "\r" or buf[curposreal] == "\n" then
+				elseif doNewlineCheck(true) ~= nil then
 					-- TODO: convert to return
 					error({msg = "Unclosed regexp.", lastToken = {t = Lexer.tokT.regexp, value = aaal, position = tokPos}, fileRef = fileref}, 1)
 				end
