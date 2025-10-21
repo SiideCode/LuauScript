@@ -1,2 +1,1 @@
-# ARCHIVED
-LuauScript will be undergoing a nearly complete rework in another language (either C++ or Haxe) under the [MultiPliers](https://github.com/SiideCode/MultiPliersLang) name. The reasons are: Roblox planning to make user scripting a thing, which will simply be better than this; lacking Luau programming tools; and my wish to make something that is multifunctional, instead of it just being whatever this is, however MultiPliers might get a Luau target one day.
+
